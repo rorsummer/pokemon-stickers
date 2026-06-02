@@ -1,0 +1,2090 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>宝可梦贴纸画布 🎨 — 在线版</title>
+<style>
+/* ============ Reset & Variables ============ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --sidebar-w:340px;
+  --bg:#e8e0d5;
+  --panel-bg:#faf7f0;
+  --accent:#c8963e;
+  --accent2:#6b8f5e;
+  --text:#3d3220;
+  --text-light:#8a7a60;
+  --border:#e0d6c0;
+  --shadow:0 2px 8px rgba(0,0,0,0.06);
+}
+body{
+  font-family:"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;
+  background:var(--bg);
+  height:100vh;
+  display:flex;
+  flex-direction:row;
+  overflow:hidden;
+  color:var(--text);
+}
+
+/* ============ Sidebar ============ */
+.sidebar{
+  width:var(--sidebar-w);
+  min-width:200px;
+  max-width:500px;
+  height:100vh;
+  background:linear-gradient(180deg,#faf7f0 0%,#f3efe5 100%);
+  border-right:1px solid #d8d0b8;
+  display:flex;
+  flex-direction:column;
+  z-index:50;
+  box-shadow:2px 0 16px rgba(0,0,0,0.06);
+}
+
+/* Sidebar resize handle */
+.sidebar-resizer{
+  width:6px;min-width:6px;
+  height:100vh;
+  background:transparent;
+  cursor:col-resize;
+  z-index:60;
+  transition:background 0.15s;
+  position:relative;
+}
+.sidebar-resizer:hover,.sidebar-resizer.active{background:var(--accent)}
+.sidebar-resizer::after{
+  content:"";position:absolute;
+  top:50%;left:50%;transform:translate(-50%,-50%);
+  width:2px;height:40px;border-radius:1px;
+  background:#c0b090;
+  transition:all 0.15s;
+}
+.sidebar-resizer:hover::after,.sidebar-resizer.active::after{
+  background:#fff;height:60px;
+}
+
+.sidebar-header{
+  padding:18px 20px;
+  border-bottom:1px solid var(--border);
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-shrink:0;
+}
+.sidebar-header .icon{font-size:28px}
+.sidebar-header h2{font-size:17px;font-weight:700;letter-spacing:1px;color:#3d3220}
+.sidebar-header h2 span{color:var(--accent)}
+
+.sidebar-sections{
+  flex:1;
+  overflow-y:auto;
+  overflow-x:hidden;
+}
+.sidebar-sections::-webkit-scrollbar{width:5px}
+.sidebar-sections::-webkit-scrollbar-thumb{background:#d0c8b0;border-radius:3px}
+
+/* ============ Accordion Section ============ */
+.sec{
+  border-bottom:1px solid var(--border);
+}
+.sec-header{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:13px 18px;
+  cursor:pointer;
+  user-select:none;
+  transition:background 0.15s;
+  font-weight:600;
+  font-size:13.5px;
+}
+.sec-header:hover{background:rgba(0,0,0,0.02)}
+.sec-header .sec-icon{font-size:17px;width:22px;text-align:center;flex-shrink:0}
+.sec-header .sec-arrow{font-size:10px;margin-left:auto;transition:transform 0.25s;color:#b0a080;flex-shrink:0}
+.sec.open .sec-header .sec-arrow{transform:rotate(90deg)}
+.sec-header .sec-count{font-size:10px;color:var(--text-light);margin-left:4px}
+
+.sec-body{
+  max-height:0;
+  overflow:hidden;
+  transition:max-height 0.35s ease;
+}
+.sec.open .sec-body{max-height:none;overflow-y:auto}
+.sec-body-inner{padding:8px 16px 14px}
+
+/* ============ Background Panel ============ */
+.bg-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:8px;
+  flex-wrap:wrap;
+}
+.bg-row label{
+  font-size:11px;color:var(--text-light);white-space:nowrap;
+  font-weight:600;min-width:28px;
+}
+.bg-row input[type=number]{
+  width:64px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;
+  font-size:12px;font-family:inherit;text-align:center;background:#fffdf8
+}
+.bg-row select{
+  padding:5px 8px;border:1px solid var(--border);border-radius:6px;
+  font-size:12px;font-family:inherit;background:#fffdf8;cursor:pointer
+}
+.preset-sizes{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
+.preset-sizes button{
+  padding:4px 10px;font-size:11px;border:1px solid var(--border);border-radius:14px;
+  background:#fffdf8;cursor:pointer;font-family:inherit;transition:all 0.15s;
+  white-space:nowrap
+}
+.preset-sizes button:hover{background:#f5ead0;border-color:var(--accent)}
+.color-presets{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
+.color-presets button{
+  width:26px;height:26px;border-radius:50%;border:2px solid transparent;
+  cursor:pointer;transition:all 0.15s
+}
+.color-presets button:hover{transform:scale(1.15);border-color:var(--accent)}
+.color-presets button.active{border-color:var(--accent);box-shadow:0 0 0 2px rgba(200,150,62,0.25)}
+.btn-apply{
+  width:100%;padding:9px;font-size:13px;font-weight:700;
+  background:var(--accent);color:#fff;border:none;border-radius:10px;
+  cursor:pointer;font-family:inherit;letter-spacing:1px;
+  transition:all 0.2s
+}
+.btn-apply:hover{background:#b8842e;box-shadow:0 4px 12px rgba(200,150,62,0.3)}
+.btn-outline{
+  width:100%;padding:7px;font-size:12px;font-weight:600;
+  background:#fffdf8;color:var(--text);border:1.5px dashed #c0b090;
+  border-radius:8px;cursor:pointer;font-family:inherit;
+  transition:all 0.15s;text-align:center;margin-top:6px;
+}
+.btn-outline:hover{background:#fdf6e8;border-color:var(--accent);color:var(--accent)}
+.btn-outline.danger{color:#c05a5a;border-color:#e0c0c0}
+.btn-outline.danger:hover{background:#fdf0f0;border-color:#c05a5a}
+.bg-img-preview{
+  width:100%;height:60px;border-radius:8px;border:1px solid var(--border);
+  margin-top:6px;background-size:cover;background-position:center;
+  display:none;
+}
+.bg-img-preview.show{display:block}
+
+/* ============ Zoom Controls ============ */
+.zoom-controls{
+  display:flex;align-items:center;gap:4px;
+  background:#fffdf8;border:1px solid #d8d0b8;border-radius:10px;
+  padding:3px 4px;
+}
+.zoom-controls button{
+  width:32px;height:28px;border:1px solid #e8dcc8;border-radius:6px;
+  background:#fffdf8;cursor:pointer;font-size:16px;
+  display:flex;align-items:center;justify-content:center;
+  transition:all 0.12s;font-family:inherit;line-height:1;color:#5d4a2a;
+}
+.zoom-controls button:hover{background:#f5ead0;border-color:var(--accent)}
+.zoom-controls .zoom-val{
+  font-size:11px;font-weight:700;color:var(--text);
+  min-width:38px;text-align:center;cursor:pointer;
+  user-select:none;
+}
+.zoom-controls .zoom-val:hover{color:var(--accent)}
+
+/* ============ Sprite Search & Grid ============ */
+.sprite-search{
+  width:100%;padding:8px 12px 8px 32px;border:1px solid var(--border);
+  border-radius:8px;font-size:12px;font-family:inherit;background:#fffdf8;
+  margin-bottom:8px;outline:none;transition:border 0.2s
+}
+.sprite-search:focus{border-color:var(--accent)}
+.sprite-search-wrap{position:relative;margin-bottom:2px}
+.sprite-search-wrap .s-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none}
+.sprite-search-wrap .s-clear{position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  background:none;border:none;cursor:pointer;font-size:14px;color:#b0a080;display:none;padding:2px 4px}
+.sprite-search-wrap .s-clear.show{display:block}
+
+.sprite-grid{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:6px;
+  max-height:220px;
+  overflow-y:auto;
+  padding-right:2px;
+}
+.sprite-grid::-webkit-scrollbar{width:4px}
+.sprite-grid::-webkit-scrollbar-thumb{background:#d0c8b0;border-radius:2px}
+
+.sprite-thumb{
+  aspect-ratio:1;
+  background:#fffdf8;
+  border-radius:8px;
+  border:1.5px solid #ece4d0;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:4px;
+  transition:all 0.2s;
+  position:relative;
+}
+.sprite-thumb:hover{
+  border-color:var(--accent);
+  transform:translateY(-2px);
+  box-shadow:0 4px 10px rgba(0,0,0,0.1);
+  z-index:2;
+}
+.sprite-thumb img{
+  max-width:100%;max-height:100%;
+  image-rendering:pixelated;
+  pointer-events:none;
+}
+.sprite-thumb .tid{
+  position:absolute;bottom:1px;right:4px;
+  font-size:8px;color:#b0a080;font-weight:700;
+  pointer-events:none;
+}
+.sprite-pagination{
+  display:flex;align-items:center;justify-content:center;gap:6px;margin-top:6px;
+}
+.sprite-pagination button{
+  padding:3px 10px;font-size:10px;border:1px solid var(--border);border-radius:10px;
+  background:#fffdf8;cursor:pointer;font-family:inherit;transition:all 0.15s;
+}
+.sprite-pagination button:hover:not(:disabled){background:#f5ead0}
+.sprite-pagination button:disabled{opacity:0.3;cursor:not-allowed}
+.sprite-pagination span{font-size:10px;color:var(--text-light)}
+.no-result{text-align:center;padding:16px;font-size:11px;color:#b0a090;grid-column:1/-1}
+
+/* ============ Main / Canvas Area ============ */
+.main{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  background:#d5cdbc;
+}
+
+/* Canvas toolbar */
+.canvas-toolbar{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 16px;
+  background:#f5f0e5;
+  border-bottom:1px solid #d8d0b8;
+  flex-shrink:0;
+  flex-wrap:wrap;
+}
+.canvas-toolbar .t-info{
+  font-size:12px;color:var(--text-light);
+  margin-right:auto;
+}
+.canvas-toolbar button{
+  padding:5px 12px;font-size:11px;border:1px solid var(--border);
+  border-radius:8px;background:#fffdf8;cursor:pointer;font-family:inherit;
+  font-weight:600;transition:all 0.15s;
+}
+.canvas-toolbar button:hover{background:#f5ead0;border-color:var(--accent)}
+.canvas-toolbar button.danger{color:#c05a5a;border-color:#e8c8c8}
+.canvas-toolbar button.danger:hover{background:#fdf0f0;border-color:#c05a5a}
+.canvas-toolbar .sep{width:1px;height:18px;background:#d8d0b8;margin:0 4px}
+
+/* Canvas viewport */
+.canvas-viewport{
+  flex:1;
+  overflow:auto;
+  display:flex;
+  align-items:flex-start;
+  justify-content:flex-start;
+  padding:32px;
+}
+.canvas-viewport::-webkit-scrollbar{width:7px;height:7px}
+.canvas-viewport::-webkit-scrollbar-thumb{background:#b8a888;border-radius:4px}
+.canvas-viewport::-webkit-scrollbar-track{background:rgba(0,0,0,0.03)}
+
+/* The actual canvas */
+.canvas-stage{
+  position:relative;
+  flex-shrink:0;
+  box-shadow:0 8px 32px rgba(0,0,0,0.18);
+  border-radius:2px;
+  cursor:crosshair;
+  /* size set by JS */
+}
+
+/* Empty canvas hint */
+.canvas-hint{
+  position:absolute;
+  top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  text-align:center;
+  pointer-events:none;
+  color:#c0b090;
+  font-size:14px;
+  z-index:0;
+}
+.canvas-hint .hint-icon{font-size:48px;display:block;margin-bottom:8px;opacity:0.5}
+
+/* Sticker on canvas */
+.sticker{
+  position:absolute;
+  cursor:grab;
+  user-select:none;
+  transform-origin:center center;
+  transition:filter 0.15s;
+  /* x,y set by JS as left/top (center-anchored via translate(-50%,-50%)) */
+}
+.sticker.dragging{cursor:grabbing;z-index:9999!important;filter:brightness(1.1) drop-shadow(0 6px 10px rgba(0,0,0,0.25))}
+.sticker.selected{outline:3px solid #e0a030;outline-offset:3px;border-radius:2px;z-index:1000!important}
+.sticker img{
+  display:block;
+  image-rendering:auto;
+  pointer-events:none;
+  max-width:280px;max-height:280px;
+  min-width:24px;min-height:24px;
+}
+
+/* ============ Resize Handles on Stickers ============ */
+.resize-handle{
+  position:absolute;width:12px;height:12px;
+  background:#fff;border:2px solid #e0a030;
+  border-radius:2px;z-index:10001;pointer-events:auto;
+  box-shadow:0 0 0 1px rgba(0,0,0,0.12);
+}
+.resize-handle.nw{cursor:nw-resize}
+.resize-handle.n{cursor:n-resize}
+.resize-handle.ne{cursor:ne-resize}
+.resize-handle.e{cursor:e-resize}
+.resize-handle.se{cursor:se-resize}
+.resize-handle.s{cursor:s-resize}
+.resize-handle.sw{cursor:sw-resize}
+.resize-handle.w{cursor:w-resize}
+
+/* ============ Background Layer ============ */
+.bg-layer{
+  position:absolute;
+  cursor:grab;user-select:none;
+  z-index:0!important;
+}
+.bg-layer.selected{outline:3px solid #e0a030;outline-offset:3px;z-index:1!important}
+.bg-layer.dragging{cursor:grabbing;z-index:9999!important;filter:brightness(1.05)}
+.bg-layer img{display:block;pointer-events:none}
+
+.sticker .sticker-label{
+  position:absolute;bottom:-16px;left:50%;transform:translateX(-50%);
+  font-size:9px;color:#8a7a60;white-space:nowrap;font-weight:600;
+  pointer-events:none;text-align:center;
+  text-shadow:0 1px 2px rgba(255,255,255,0.8);
+}
+
+/* ============ Sticker Context Toolbar (floating) ============ */
+.sticker-tools{
+  position:absolute;
+  display:flex;
+  gap:4px;
+  background:#fffdf8;
+  border:1px solid #d0c0a0;
+  border-radius:12px;
+  padding:6px 5px 4px;
+  box-shadow:0 6px 24px rgba(0,0,0,0.18);
+  z-index:9999;
+  pointer-events:auto;
+  transform:translate(-50%,-115%);
+}
+.sticker-tools button{
+  width:44px;height:44px;
+  border:1px solid #e8dcc8;
+  border-radius:8px;
+  background:#fffdf8;
+  cursor:pointer;
+  font-size:16px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:1px;
+  transition:all 0.12s;
+  line-height:1;
+  color:#5d4a2a;
+  padding:2px 3px;
+}
+.sticker-tools button .tl-icon{font-size:15px;line-height:1}
+.sticker-tools button .tl-label{font-size:9px;color:#8a7a60;line-height:1;white-space:nowrap}
+.sticker-tools button:hover{background:#f5ead0;border-color:var(--accent)}
+.sticker-tools button:hover .tl-label{color:#5d4a2a}
+.sticker-tools button.danger{color:#c05a5a}
+.sticker-tools button.danger:hover{background:#fdf0f0;border-color:#c05a5a}
+
+/* ============ Layer Panel ============ */
+.layer-list{
+  display:flex;flex-direction:column;gap:4px;
+  max-height:300px;overflow-y:auto;
+}
+.layer-list::-webkit-scrollbar{width:4px}
+.layer-list::-webkit-scrollbar-thumb{background:#d0c8b0;border-radius:2px}
+
+.layer-item{
+  display:flex;align-items:center;gap:8px;
+  padding:6px 8px;background:#fffdf8;
+  border:1.5px solid #ece4d0;border-radius:8px;
+  cursor:grab;user-select:none;
+  transition:all 0.15s;
+}
+.layer-item:active{cursor:grabbing}
+.layer-item:hover{border-color:var(--accent);box-shadow:0 2px 6px rgba(0,0,0,0.05)}
+.layer-item.selected{border-color:#e0a030;background:#fffbf0;box-shadow:0 0 0 2px rgba(224,160,48,0.15)}
+.layer-item.drag-over{border-color:var(--accent);border-style:dashed;background:#fdf8ee}
+.layer-item.dragging-src{opacity:0.4;border-style:dashed}
+
+.layer-handle{
+  display:flex;flex-direction:column;gap:2px;
+  cursor:grab;padding:2px;color:#c0b090;
+  font-size:8px;letter-spacing:1px;line-height:1;
+  flex-shrink:0;
+}
+
+.layer-thumb{
+  width:32px;height:32px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  background:#f8f4ea;border-radius:4px;
+}
+.layer-thumb img{max-width:100%;max-height:100%;image-rendering:pixelated}
+
+.layer-info{flex:1;min-width:0}
+.layer-info .li-name{font-size:12px;font-weight:600;color:var(--text);text-transform:capitalize;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.layer-info .li-id{font-size:9px;color:var(--text-light)}
+
+.layer-actions{display:flex;gap:1px;flex-shrink:0;flex-wrap:wrap;max-width:80px}
+.layer-actions button{
+  width:20px;height:20px;border:none;border-radius:3px;
+  background:transparent;cursor:pointer;font-size:11px;
+  display:flex;align-items:center;justify-content:center;
+  transition:all 0.12s;color:#b0a090;padding:0;
+}
+.layer-actions button:hover{background:#f0e8d8;color:#5d4a2a}
+.layer-actions button.del:hover{background:#fde8e8;color:#c05a5a}
+
+.layer-empty{text-align:center;padding:20px;font-size:11px;color:#b0a090}
+.layer-empty span{font-size:28px;display:block;margin-bottom:4px}
+
+/* ============ Toast ============ */
+.toast{
+  position:fixed;bottom:30px;left:50%;transform:translateX(-50%);
+  background:#3d3220;color:#f5e6c8;padding:8px 20px;
+  border-radius:20px;font-size:12px;z-index:99999;
+  pointer-events:none;opacity:0;transition:opacity 0.3s;
+}
+.toast.show{opacity:0.9}
+
+/* ============ Responsive ============ */
+@media(max-width:600px){
+  :root{--sidebar-w:100%}
+  body{flex-direction:column}
+  .sidebar{width:100%;min-width:100%;max-height:45vh;border-right:none;border-bottom:1px solid #d8d0b8}
+  .main{height:55vh}
+  .sprite-grid{grid-template-columns:repeat(6,1fr)}
+  .canvas-viewport{padding:12px}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ Sidebar ============ -->
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <span class="icon">🎨</span>
+    <h2>宝可梦<span>贴纸画布</span></h2>
+  </div>
+
+  <div class="sidebar-sections" id="sidebarSections">
+    <!-- Section 1: 背景 -->
+    <div class="sec open" id="sec-bg">
+      <div class="sec-header" onclick="toggleSection('sec-bg')">
+        <span class="sec-icon">🖼️</span> 背景设置
+        <span class="sec-arrow">▶</span>
+      </div>
+      <div class="sec-body">
+        <div class="sec-body-inner">
+          <div class="bg-row"><label>预设</label></div>
+          <div class="preset-sizes">
+            <button onclick="setCanvasSize(800,600)">800×600</button>
+            <button onclick="setCanvasSize(1024,768)">1024×768</button>
+            <button onclick="setCanvasSize(1200,800)">1200×800</button>
+            <button onclick="setCanvasSize(1280,720)">1280×720</button>
+            <button onclick="setCanvasSize(1600,900)">1600×900</button>
+            <button onclick="setCanvasSize(1080,1080)">1080×1080</button>
+          </div>
+          <div class="bg-row">
+            <label>宽度</label>
+            <input type="number" id="canvasW" value="800" min="200" max="4000" step="10">
+            <label>高度</label>
+            <input type="number" id="canvasH" value="600" min="200" max="4000" step="10">
+          </div>
+          <div class="bg-row">
+            <label>颜色</label>
+            <input type="color" id="canvasColor" value="#ffffff" style="width:36px;height:28px;border:none;cursor:pointer;border-radius:6px">
+          </div>
+          <div class="color-presets" id="colorPresets">
+            <button style="background:#ffffff" class="active" onclick="pickColor('#ffffff',this)"></button>
+            <button style="background:#f5f0e8" onclick="pickColor('#f5f0e8',this)"></button>
+            <button style="background:#d4e8d4" onclick="pickColor('#d4e8d4',this)"></button>
+            <button style="background:#d4dce8" onclick="pickColor('#d4dce8',this)"></button>
+            <button style="background:#e8d4d4" onclick="pickColor('#e8d4d4',this)"></button>
+            <button style="background:#e8e4d4" onclick="pickColor('#e8e4d4',this)"></button>
+            <button style="background:#d4e8e4" onclick="pickColor('#d4e8e4',this)"></button>
+            <button style="background:#e0d4e8" onclick="pickColor('#e0d4e8',this)"></button>
+            <button style="background:#f0f0f0" onclick="pickColor('#f0f0f0',this)"></button>
+            <button style="background:#2c2c2c" onclick="pickColor('#2c2c2c',this)"></button>
+            <button style="background:#e8d0b0" onclick="pickColor('#e8d0b0',this)"></button>
+            <button style="background:#b0d0e8" onclick="pickColor('#b0d0e8',this)"></button>
+          </div>
+          <button class="btn-apply" onclick="applyCanvas()">✅ 应用画布设置</button>
+          <button class="btn-outline" onclick="document.getElementById('bgImageInput').click()">🖼️ 导入背景图片…</button>
+          <input type="file" id="bgImageInput" accept="image/*" style="display:none" onchange="onBgImageSelected(event)">
+          <div class="bg-img-preview" id="bgImgPreview"></div>
+          <button class="btn-outline danger" id="btnClearBgImg" style="display:none" onclick="clearBgImage()">✕ 清除背景图片</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 2: 图层面板 -->
+    <div class="sec open" id="sec-layers">
+      <div class="sec-header" onclick="toggleSection('sec-layers')">
+        <span class="sec-icon">📋</span> 图层面板
+        <span class="sec-count" id="layerCount">(0)</span>
+        <span class="sec-arrow">▶</span>
+      </div>
+      <div class="sec-body">
+        <div class="sec-body-inner">
+          <div class="layer-list" id="layerList">
+            <div class="layer-empty"><span>📭</span>画布上还没有贴纸<br>从下方栏目添加宝可梦吧~</div>
+          </div>
+          <div style="margin-top:8px;font-size:10px;color:#b0a090;text-align:center">
+            💡 拖拽图层可调整顺序 · 点击图层选中贴纸
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 3: 导入图片 -->
+    <div class="sec open" id="sec-import">
+      <div class="sec-header" onclick="toggleSection('sec-import')">
+        <span class="sec-icon">📥</span> 导入图片
+        <span class="sec-arrow">▶</span>
+      </div>
+      <div class="sec-body">
+        <div class="sec-body-inner">
+          <button class="btn-outline" onclick="document.getElementById('userImageInput').click()" style="margin-top:0">🖼️ 选择本地图片…</button>
+          <input type="file" id="userImageInput" accept="image/*" style="display:none" onchange="importUserImage(event)">
+          <div style="font-size:10px;color:#b0a090;text-align:center;margin-top:6px">
+            💡 导入的图片将作为贴纸出现在画布中央
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 4: 文字 -->
+    <div class="sec open" id="sec-text">
+      <div class="sec-header" onclick="toggleSection('sec-text')">
+        <span class="sec-icon">📝</span> 文字
+        <span class="sec-arrow">▶</span>
+      </div>
+      <div class="sec-body">
+        <div class="sec-body-inner">
+          <div class="bg-row">
+            <input type="text" id="textInput" placeholder="输入文字内容…" style="flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;background:#fffdf8;min-width:140px">
+          </div>
+          <div class="bg-row">
+            <label>字号</label>
+            <input type="number" id="textSize" value="48" min="8" max="200" step="2" style="width:56px">
+            <label>颜色</label>
+            <input type="color" id="textColor" value="#3d3220" style="width:30px;height:24px;border:none;cursor:pointer;border-radius:4px">
+          </div>
+          <div class="bg-row" style="gap:4px">
+            <button id="btnBold" onclick="toggleTextStyle('bold',this)" style="padding:3px 8px;font-size:11px;border:1px solid var(--border);border-radius:6px;background:#fffdf8;cursor:pointer;font-weight:bold;font-family:inherit">B</button>
+            <button id="btnItalic" onclick="toggleTextStyle('italic',this)" style="padding:3px 8px;font-size:11px;border:1px solid var(--border);border-radius:6px;background:#fffdf8;cursor:pointer;font-style:italic;font-family:inherit">I</button>
+            <button id="btnUnderline" onclick="toggleTextStyle('underline',this)" style="padding:3px 8px;font-size:11px;border:1px solid var(--border);border-radius:6px;background:#fffdf8;cursor:pointer;text-decoration:underline;font-family:inherit">U</button>
+            <span style="flex:1"></span>
+            <label style="font-size:10px;color:var(--text-light)">描边</label>
+            <input type="color" id="textStroke" value="#ffffff" style="width:22px;height:20px;border:1px solid var(--border);cursor:pointer;border-radius:4px">
+            <input type="number" id="textStrokeW" value="0" min="0" max="10" step="0.5" style="width:40px;padding:2px 4px;font-size:10px;border:1px solid var(--border);border-radius:4px;text-align:center" title="描边宽度(0=无)">
+          </div>
+          <div class="color-presets" id="textColorPresets">
+            <button style="background:#3d3220" class="active" onclick="document.getElementById('textColor').value='#3d3220';updateTextColorPreset(this)"></button>
+            <button style="background:#c05a5a" onclick="document.getElementById('textColor').value='#c05a5a';updateTextColorPreset(this)"></button>
+            <button style="background:#4a90d9" onclick="document.getElementById('textColor').value='#4a90d9';updateTextColorPreset(this)"></button>
+            <button style="background:#6b8f5e" onclick="document.getElementById('textColor').value='#6b8f5e';updateTextColorPreset(this)"></button>
+            <button style="background:#c8963e" onclick="document.getElementById('textColor').value='#c8963e';updateTextColorPreset(this)"></button>
+            <button style="background:#8844cc" onclick="document.getElementById('textColor').value='#8844cc';updateTextColorPreset(this)"></button>
+            <button style="background:#ffffff;border:1px solid #ddd" onclick="document.getElementById('textColor').value='#ffffff';updateTextColorPreset(this)"></button>
+            <button style="background:#000000" onclick="document.getElementById('textColor').value='#000000';updateTextColorPreset(this)"></button>
+          </div>
+          <button class="btn-apply" onclick="addTextSticker()" style="margin-top:4px">📝 添加文字到画布</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sections 5-9: Sprite categories -->
+  </div>
+</aside>
+
+<!-- Sidebar resize handle -->
+<div class="sidebar-resizer" id="sidebarResizer"></div>
+
+<!-- ============ Main ============ -->
+<main class="main">
+  <div class="canvas-toolbar" id="canvasToolbar">
+    <span class="t-info" id="toolbarInfo">画布: 800×600 | 贴纸: 0 张</span>
+    <span class="sep"></span>
+    <button onclick="clearAllStickers()" class="danger" title="清除全部贴纸">🗑️ 清空贴纸</button>
+    <button onclick="exportCanvas()" title="导出为图片">📸 导出图片</button>
+    <span class="sep"></span>
+    <span style="font-size:10px;color:#b0a090">💡 拖拽移动 | 双击翻转 | Delete删除所选</span>
+    <span style="flex:1"></span>
+    <div class="zoom-controls">
+      <button onclick="zoomOut()" title="缩小">🔍​</button>
+      <span class="zoom-val" id="zoomVal" onclick="resetZoom()" title="点击重置">100%</span>
+      <button onclick="zoomIn()" title="放大">🔍</button>
+    </div>
+  </div>
+
+  <div class="canvas-viewport" id="canvasViewport">
+    <div class="canvas-stage" id="canvasStage" style="width:800px;height:600px;background:#ffffff">
+      <div class="canvas-hint" id="canvasHint">
+        <span class="hint-icon">🎨</span>
+        图片来自 PokéAPI CDN<br>无需本地文件，打开即用
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ============ Sticker Tools (floating, cloned per sticker) ============ -->
+<div id="stickerToolsProto" style="display:none">
+  <div class="sticker-tools">
+    <button title="左右翻转" data-action="flipH"><span class="tl-icon">↔️</span><span class="tl-label">左右翻转</span></button>
+    <button title="上下翻转" data-action="flipV"><span class="tl-icon">↕️</span><span class="tl-label">上下翻转</span></button>
+    <button title="上移一层" data-action="forward"><span class="tl-icon">⬆️</span><span class="tl-label">上移一层</span></button>
+    <button title="下移一层" data-action="backward"><span class="tl-icon">⬇️</span><span class="tl-label">下移一层</span></button>
+    <button title="置于顶层" data-action="toFront"><span class="tl-icon">⏫</span><span class="tl-label">置于顶层</span></button>
+    <button title="置于底层" data-action="toBack"><span class="tl-icon">⏬</span><span class="tl-label">置于底层</span></button>
+    <button title="顺时针旋转" data-action="rotateCW"><span class="tl-icon">↻</span><span class="tl-label">旋转</span></button>
+    <button title="删除贴纸" data-action="delete" class="danger"><span class="tl-icon">✕</span><span class="tl-label">删除</span></button>
+  </div>
+</div>
+
+<!-- ============ Toast ============ -->
+<div class="toast" id="toast"></div>
+
+<!-- ============ Sprite Data ============ -->
+<!-- Pokémon names embedded inline; images from PokéAPI CDN -->
+<script>
+const STICKER_DATA = {
+  "装饰": {
+    label: "装饰",
+    entries: [
+      { id: "star_gold", name: "star gold", src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdHlsZT0ic3RvcC1jb2xvcjojRkZENzAwIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdHlsZT0ic3RvcC1jb2xvcjojRkZBNTAwIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHBvbHlnb24gcG9pbnRzPSI1MCw1IDYxLDM1IDk1LDM1IDY4LDU3IDc5LDkxIDUwLDcwIDIxLDkxIDMyLDU3IDUsMzUgMzksMzUiIGZpbGw9InVybCgjZykiIHN0cm9rZT0iI0RBQTUyMCIgc3Ryb2tlLXdpZHRoPSIyIi8+PC9zdmc+" },
+      { id: "heart_red", name: "heart red", src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PHBhdGggZD0iTTUwLDg1IEMyMCw2MCA1LDQ1IDUsMjggQzUsMTQgMTYsNSAzMCw1IEMzOCw1IDQ1LDEwIDUwLDE4IEM1NSwxMCA2Miw1IDcwLDUgQzg0LDUgOTUsMTQgOTUsMjggQzk1LDQ1IDgwLDYwIDUwLDg1WiIgZmlsbD0iI0ZGNDQ0NCIgc3Ryb2tlPSIjQ0MwMDAwIiBzdHJva2Utd2lkdGg9IjIiLz48L3N2Zz4=" },
+      { id: "sparkle", name: "sparkle", src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PHBvbHlnb24gcG9pbnRzPSI1MCwyIDU2LDM4IDkyLDQ0IDU2LDUwIDUwLDg2IDQ0LDUwIDgsNDQgNDQsMzgiIGZpbGw9IiNGRkQ3MDAiIHN0cm9rZT0iI0RBQTUyMCIgc3Ryb2tlLXdpZHRoPSIxLjUiLz48L3N2Zz4=" },
+      { id: "crown", name: "crown", src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PHBvbHlnb24gcG9pbnRzPSI1LDc1IDIwLDI1IDM1LDQ1IDUwLDE1IDY1LDQ1IDgwLDI1IDk1LDc1IiBmaWxsPSIjRkZENzAwIiBzdHJva2U9IiNEQUE1MjAiIHN0cm9rZS13aWR0aD0iMiIvPjxyZWN0IHg9IjUiIHk9Ijc1IiB3aWR0aD0iOTAiIGhlaWdodD0iMTAiIGZpbGw9IiNGRkQ3MDAiIHN0cm9rZT0iI0RBQTUyMCIgc3Ryb2tlLXdpZHRoPSIyIi8+PGNpcmNsZSBjeD0iMTAiIGN5PSI4NSIgcj0iNCIgZmlsbD0iI0ZGNDQ0NCIvPjxjaXJjbGUgY3g9IjUwIiBjeT0iODUiIHI9IjQiIGZpbGw9IiM0NDg4RkYiLz48Y2lyY2xlIGN4PSI5MCIgY3k9Ijg1IiByPSI0IiBmaWxsPSIjNDRCQjQ0Ii8+PC9zdmc+" },
+      { id: "ribbon", name: "ribbon", src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PHBhdGggZD0iTTUwLDEwIEw4MCwzMCBMNjUsNTAgTDUwLDkwIEwzNSw1MCBMMjAsMzAgWiIgZmlsbD0iI0ZGNkI5RCIgc3Ryb2tlPSIjQ0M0NDc3IiBzdHJva2Utd2lkdGg9IjIiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjMwIiByPSI4IiBmaWxsPSIjRkZENzAwIi8+PC9zdmc+" },
+      { id: "badge", name: "badge", src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PGNpcmNsZSBjeD0iNTAiIGN5PSI0NSIgcj0iMzUiIGZpbGw9IiNGRkQ3MDAiIHN0cm9rZT0iI0RBQTUyMCIgc3Ryb2tlLXdpZHRoPSIzIi8+PHBvbHlnb24gcG9pbnRzPSI1MCwxMCA1NSwzMCA3NSwzNSA1NSw0MCA1MCw2MCA0NSw0MCAyNSwzNSA0NSwzMCIgZmlsbD0iI0ZGRiIgb3BhY2l0eT0iMC41Ii8+PHJlY3QgeD0iMjUiIHk9IjcwIiB3aWR0aD0iNTAiIGhlaWdodD0iMTIiIHJ4PSIyIiBmaWxsPSIjRkZENzAwIiBzdHJva2U9IiNEQUE1MjAiIHN0cm9rZS13aWR0aD0iMS41Ii8+PHJlY3QgeD0iMjgiIHk9IjczIiB3aWR0aD0iNDQiIGhlaWdodD0iNiIgcng9IjEiIGZpbGw9IiNGRkE1MDAiLz48L3N2Zz4=" },
+      { id: "flower_pink", name: "flower pink", src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PGNpcmNsZSBjeD0iNTAiIGN5PSIyMCIgcj0iMTUiIGZpbGw9IiNGRjg4QUEiLz48Y2lyY2xlIGN4PSI3NSIgY3k9IjQwIiByPSIxNSIgZmlsbD0iI0ZGODhBQSIvPjxjaXJjbGUgY3g9IjcwIiBjeT0iNzAiIHI9IjE1IiBmaWxsPSIjRkY4OEFBIi8+PGNpcmNsZSBjeD0iMzAiIGN5PSI3MCIgcj0iMTUiIGZpbGw9IiNGRjg4QUEiLz48Y2lyY2xlIGN4PSIyNSIgY3k9IjQwIiByPSIxNSIgZmlsbD0iI0ZGODhBQSIvPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjE4IiBmaWxsPSIjRkZERDQ0Ii8+PC9zdmc+" },
+      { id: "butterfly", name: "butterfly", src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PGVsbGlwc2UgY3g9IjM1IiBjeT0iMzUiIHJ4PSIyNSIgcnk9IjE4IiBmaWxsPSIjQUE4OEZGIiB0cmFuc2Zvcm09InJvdGF0ZSgtMzAsMzUsMzUpIi8+PGVsbGlwc2UgY3g9IjY1IiBjeT0iMzUiIHJ4PSIyNSIgcnk9IjE4IiBmaWxsPSIjQUE4OEZGIiB0cmFuc2Zvcm09InJvdGF0ZSgzMCw2NSwzNSkiLz48ZWxsaXBzZSBjeD0iMzUiIGN5PSI2NSIgcng9IjE4IiByeT0iMTQiIGZpbGw9IiNDQ0FBRkYiIHRyYW5zZm9ybT0icm90YXRlKDIwLDM1LDY1KSIvPjxlbGxpcHNlIGN4PSI2NSIgY3k9IjY1IiByeD0iMTgiIHJ5PSIxNCIgZmlsbD0iI0NDQUFGRiIgdHJhbnNmb3JtPSJyb3RhdGUoLTIwLDY1LDY1KSIvPjxyZWN0IHg9IjQ4IiB5PSIyMCIgd2lkdGg9IjQiIGhlaWdodD0iNjUiIHJ4PSIyIiBmaWxsPSIjNjY0NEFBIi8+PC9zdmc+" },
+      { id: "clover", name: "clover", src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PGNpcmNsZSBjeD0iMzUiIGN5PSIzMCIgcj0iMTgiIGZpbGw9IiM1NUNDNjYiLz48Y2lyY2xlIGN4PSI2NSIgY3k9IjMwIiByPSIxOCIgZmlsbD0iIzU1Q0M2NiIvPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTUiIHI9IjE4IiBmaWxsPSIjNTVDQzY2Ii8+PGNpcmNsZSBjeD0iNTAiIGN5PSIzNSIgcj0iMTIiIGZpbGw9IiM0NEJCNTUiLz48cmVjdCB4PSI0OCIgeT0iNjUiIHdpZHRoPSI0IiBoZWlnaHQ9IjMwIiByeD0iMiIgZmlsbD0iIzQ0QkI1NSIvPjwvc3ZnPg==" },
+    ]
+  },
+  "符号": {
+    label: "符号",
+    entries: [
+      { id: "heart_outline", name: "heart outline", src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PHBhdGggZD0iTTUwLDgyIEMyMiw2MiA4LDQ2IDgsMzAgQzgsMTcgMTgsOCAzMiw4IEMzOSw4IDQ2LDEzIDUwLDIwIEM1NCwxMyA2MSw4IDY4LDggQzgyLDggOTIsMTcgOTIsMzAgQzkyLDQ2IDc4LDYyIDUwLDgyWiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRkY0NDQ0IiBzdHJva2Utd2lkdGg9IjMiLz48L3N2Zz4=" },
+      { id: "check", name: "check", src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNDUiIGZpbGw9IiM0NENDNDQiLz48cG9seWxpbmUgcG9pbnRzPSIyNSw1MiA0Miw2OCA3NSwzMiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRkZGIiBzdHJva2Utd2lkdGg9IjgiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==" },
+      { id: "xmark", name: "xmark", src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNDUiIGZpbGw9IiNFRTQ0NDQiLz48bGluZSB4MT0iMzAiIHkxPSIzMCIgeDI9IjcwIiB5Mj0iNzAiIHN0cm9rZT0iI0ZGRiIgc3Ryb2tlLXdpZHRoPSI4IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48bGluZSB4MT0iNzAiIHkxPSIzMCIgeDI9IjMwIiB5Mj0iNzAiIHN0cm9rZT0iI0ZGRiIgc3Ryb2tlLXdpZHRoPSI4IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48L3N2Zz4=" },
+      { id: "question", name: "question", src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNDUiIGZpbGw9IiNGRkFBMDAiLz48dGV4dCB4PSI1MCIgeT0iNTgiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iNTUiIGZvbnQtd2VpZ2h0PSJib2xkIiBmaWxsPSIjRkZGIiBmb250LWZhbWlseT0iQXJpYWwiPj88L3RleHQ+PC9zdmc+" },
+      { id: "exclamation", name: "exclamation", src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iNDUiIGZpbGw9IiNGRjY2MDAiLz48dGV4dCB4PSI1MCIgeT0iNTgiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iNTUiIGZvbnQtd2VpZ2h0PSJib2xkIiBmaWxsPSIjRkZGIiBmb250LWZhbWlseT0iQXJpYWwiPiE8L3RleHQ+PC9zdmc+" },
+      { id: "arrow_right", name: "arrow right", src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PHBvbHlnb24gcG9pbnRzPSIyMCwyMCA4MCw1MCAyMCw4MCIgZmlsbD0iIzQ0ODhGRiIgc3Ryb2tlPSIjMjI2NkNDIiBzdHJva2Utd2lkdGg9IjIiLz48L3N2Zz4=" },
+      { id: "arrow_up", name: "arrow up", src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PHBvbHlnb24gcG9pbnRzPSIyMCw4MCA1MCwyMCA4MCw4MCIgZmlsbD0iIzQ0Q0M0NCIgc3Ryb2tlPSIjMjJBQTIyIiBzdHJva2Utd2lkdGg9IjIiLz48L3N2Zz4=" },
+      { id: "music_note", name: "music note", src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PGVsbGlwc2UgY3g9IjMwIiBjeT0iNzAiIHJ4PSIxNSIgcnk9IjEwIiBmaWxsPSIjNjY0NENDIiB0cmFuc2Zvcm09InJvdGF0ZSgtMjAsMzAsNzApIi8+PGxpbmUgeDE9IjQ1IiB5MT0iNjUiIHgyPSI2MCIgeTI9IjE1IiBzdHJva2U9IiM2NjQ0Q0MiIHN0cm9rZS13aWR0aD0iNCIvPjxsaW5lIHgxPSI2MCIgeTE9IjE1IiB4Mj0iODAiIHkyPSIyMCIgc3Ryb2tlPSIjNjY0NENDIiBzdHJva2Utd2lkdGg9IjQiLz48bGluZSB4MT0iNjAiIHkxPSI0MCIgeDI9Ijg1IiB5Mj0iMzUiIHN0cm9rZT0iIzY2NDRDQyIgc3Ryb2tlLXdpZHRoPSI2Ii8+PC9zdmc+" },
+    ]
+  },
+  "气泡": {
+    label: "气泡",
+    entries: [
+      { id: "speech_blue", name: "speech blue", src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTIwIDEwMCI+PHJlY3QgeD0iNSIgeT0iNSIgd2lkdGg9IjExMCIgaGVpZ2h0PSI3NSIgcng9IjIwIiBmaWxsPSIjNDQ4OEZGIi8+PHBvbHlnb24gcG9pbnRzPSIzMCw4MCA1MCw5NSA0NSw3NSIgZmlsbD0iIzQ0ODhGRiIvPjwvc3ZnPg==" },
+      { id: "speech_pink", name: "speech pink", src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTIwIDEwMCI+PHJlY3QgeD0iNSIgeT0iNSIgd2lkdGg9IjExMCIgaGVpZ2h0PSI3NSIgcng9IjIwIiBmaWxsPSIjRkY4OEFBIi8+PHBvbHlnb24gcG9pbnRzPSI5MCw4MCA3MCw5NSA3NSw3NSIgZmlsbD0iI0ZGODhBQSIvPjwvc3ZnPg==" },
+      { id: "thought_white", name: "thought white", src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTIwIDEyMCI+PHJlY3QgeD0iMTAiIHk9IjIwIiB3aWR0aD0iMTAwIiBoZWlnaHQ9Ijc1IiByeD0iMjAiIGZpbGw9IiNGRkYiIHN0cm9rZT0iI0NDQyIgc3Ryb2tlLXdpZHRoPSIyIi8+PGNpcmNsZSBjeD0iMzAiIGN5PSIxMDUiIHI9IjgiIGZpbGw9IiNGRkYiIHN0cm9rZT0iI0NDQyIgc3Ryb2tlLXdpZHRoPSIxLjUiLz48Y2lyY2xlIGN4PSIxNSIgY3k9IjExNSIgcj0iNSIgZmlsbD0iI0ZGRiIgc3Ryb2tlPSIjQ0NDIiBzdHJva2Utd2lkdGg9IjEiLz48L3N2Zz4=" },
+      { id: "burst", name: "burst", src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PHBhdGggZD0iTTUwLDUgTDU1LDM1IEw4NSw0MCBMNTUsNDUgTDUwLDc1IEw0NSw0NSBMMTUsNDAgTDQ1LDM1IFoiIGZpbGw9IiNGRkREMDAiIHN0cm9rZT0iI0ZGOTkwMCIgc3Ryb2tlLXdpZHRoPSIyIi8+PC9zdmc+" },
+      { id: "cloud", name: "cloud", src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTIwIDEwMCI+PGVsbGlwc2UgY3g9IjUwIiBjeT0iNjAiIHJ4PSI0MCIgcnk9IjI1IiBmaWxsPSIjRkZGIiBzdHJva2U9IiNEREQiIHN0cm9rZS13aWR0aD0iMiIvPjxlbGxpcHNlIGN4PSI3NSIgY3k9IjUwIiByeD0iMzAiIHJ5PSIyMiIgZmlsbD0iI0ZGRiIgc3Ryb2tlPSIjREREIiBzdHJva2Utd2lkdGg9IjIiLz48ZWxsaXBzZSBjeD0iNDAiIGN5PSI0NSIgcng9IjI1IiByeT0iMjAiIGZpbGw9IiNGRkYiIHN0cm9rZT0iI0RERCIgc3Ryb2tlLXdpZHRoPSIyIi8+PC9zdmc+" },
+    ]
+  },
+  "形状": {
+    label: "形状",
+    entries: [
+      { id: "circle_rainbow", name: "circle rainbow", src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJyYiIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMTAwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3R5bGU9InN0b3AtY29sb3I6I0ZGNDQ0NCIvPjxzdG9wIG9mZnNldD0iMjUlIiBzdHlsZT0ic3RvcC1jb2xvcjojRkZBQTAwIi8+PHN0b3Agb2Zmc2V0PSI1MCUiIHN0eWxlPSJzdG9wLWNvbG9yOiM0NENDNDQiLz48c3RvcCBvZmZzZXQ9Ijc1JSIgc3R5bGU9InN0b3AtY29sb3I6IzQ0ODhGRiIvPjxzdG9wIG9mZnNldD0iMTAwJSIgc3R5bGU9InN0b3AtY29sb3I6I0FBNDRGRiIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjQyIiBmaWxsPSJ1cmwoI3JiKSIvPjwvc3ZnPg==" },
+      { id: "diamond", name: "diamond", src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PHBvbHlnb24gcG9pbnRzPSI1MCwyIDk1LDUwIDUwLDk4IDUsNTAiIGZpbGw9IiM0NENDRkYiIHN0cm9rZT0iIzIyODhDQyIgc3Ryb2tlLXdpZHRoPSIyIi8+PC9zdmc+" },
+      { id: "hexagon", name: "hexagon", src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PHBvbHlnb24gcG9pbnRzPSI1MCw1IDkyLDMwIDkyLDcwIDUwLDk1IDgsNzAgOCwzMCIgZmlsbD0iI0ZGODhDQyIgc3Ryb2tlPSIjQ0M2Njg4IiBzdHJva2Utd2lkdGg9IjIiLz48L3N2Zz4=" },
+      { id: "triangle", name: "triangle", src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PHBvbHlnb24gcG9pbnRzPSI1MCw1IDk1LDkwIDUsOTAiIGZpbGw9IiNGRkNDNDQiIHN0cm9rZT0iI0NDOTkwMCIgc3Ryb2tlLXdpZHRoPSIyIi8+PC9zdmc+" },
+      { id: "square_rounded", name: "square rounded", src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PHJlY3QgeD0iOCIgeT0iOCIgd2lkdGg9Ijg0IiBoZWlnaHQ9Ijg0IiByeD0iMTUiIGZpbGw9IiM4OENDNDQiIHN0cm9rZT0iIzY2QUEyMiIgc3Ryb2tlLXdpZHRoPSIyIi8+PC9zdmc+" },
+      { id: "circle_dotted", name: "circle dotted", src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iMzgiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI0ZGODgwMCIgc3Ryb2tlLXdpZHRoPSI0IiBzdHJva2UtZGFzaGFycmF5PSI4LDYiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSIyMiIgZmlsbD0iI0ZGODgwMCIgb3BhY2l0eT0iMC4zIi8+PC9zdmc+" },
+      { id: "tag", name: "tag", src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PHBhdGggZD0iTTE1LDE1IEw2MCwxNSBMODUsNDAgTDYwLDg1IEwxNSw4NSBaIiBmaWxsPSIjRkY5OTY2IiBzdHJva2U9IiNDQzY2MzMiIHN0cm9rZS13aWR0aD0iMiIvPjxjaXJjbGUgY3g9IjMwIiBjeT0iMzUiIHI9IjYiIGZpbGw9IiNGRkYiLz48L3N2Zz4=" },
+      { id: "frame", name: "frame", src: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PHJlY3QgeD0iNSIgeT0iNSIgd2lkdGg9IjkwIiBoZWlnaHQ9IjkwIiByeD0iOCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjQ0NBQTg4IiBzdHJva2Utd2lkdGg9IjYiLz48cmVjdCB4PSIxNSIgeT0iMTUiIHdpZHRoPSI3MCIgaGVpZ2h0PSI3MCIgcng9IjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI0REQ0NBQSIgc3Ryb2tlLXdpZHRoPSIyIi8+PC9zdmc+" },
+    ]
+  },
+};
+</script>
+
+<script>
+"use strict";
+// ============================================================
+//  STATE
+// ============================================================
+const POKE_NAMES = ["bulbasaur", "ivysaur", "venusaur", "charmander", "charmeleon", "charizard", "squirtle", "wartortle", "blastoise", "caterpie", "metapod", "butterfree", "weedle", "kakuna", "beedrill", "pidgey", "pidgeotto", "pidgeot", "rattata", "raticate", "spearow", "fearow", "ekans", "arbok", "pikachu", "raichu", "sandshrew", "sandslash", "nidoran-f", "nidorina", "nidoqueen", "nidoran-m", "nidorino", "nidoking", "clefairy", "clefable", "vulpix", "ninetales", "jigglypuff", "wigglytuff", "zubat", "golbat", "oddish", "gloom", "vileplume", "paras", "parasect", "venonat", "venomoth", "diglett", "dugtrio", "meowth", "persian", "psyduck", "golduck", "mankey", "primeape", "growlithe", "arcanine", "poliwag", "poliwhirl", "poliwrath", "abra", "kadabra", "alakazam", "machop", "machoke", "machamp", "bellsprout", "weepinbell", "victreebel", "tentacool", "tentacruel", "geodude", "graveler", "golem", "ponyta", "rapidash", "slowpoke", "slowbro", "magnemite", "magneton", "farfetchd", "doduo", "dodrio", "seel", "dewgong", "grimer", "muk", "shellder", "cloyster", "gastly", "haunter", "gengar", "onix", "drowzee", "hypno", "krabby", "kingler", "voltorb", "electrode", "exeggcute", "exeggutor", "cubone", "marowak", "hitmonlee", "hitmonchan", "lickitung", "koffing", "weezing", "rhyhorn", "rhydon", "chansey", "tangela", "kangaskhan", "horsea", "seadra", "goldeen", "seaking", "staryu", "starmie", "mr-mime", "scyther", "jynx", "electabuzz", "magmar", "pinsir", "tauros", "magikarp", "gyarados", "lapras", "ditto", "eevee", "vaporeon", "jolteon", "flareon", "porygon", "omanyte", "omastar", "kabuto", "kabutops", "aerodactyl", "snorlax", "articuno", "zapdos", "moltres", "dratini", "dragonair", "dragonite", "mewtwo", "mew", "chikorita", "bayleef", "meganium", "cyndaquil", "quilava", "typhlosion", "totodile", "croconaw", "feraligatr", "sentret", "furret", "hoothoot", "noctowl", "ledyba", "ledian", "spinarak", "ariados", "crobat", "chinchou", "lanturn", "pichu", "cleffa", "igglybuff", "togepi", "togetic", "natu", "xatu", "mareep", "flaaffy", "ampharos", "bellossom", "marill", "azumarill", "sudowoodo", "politoed", "hoppip", "skiploom", "jumpluff", "aipom", "sunkern", "sunflora", "yanma", "wooper", "quagsire", "espeon", "umbreon", "murkrow", "slowking", "misdreavus", "unown", "wobbuffet", "girafarig", "pineco", "forretress", "dunsparce", "gligar", "steelix", "snubbull", "granbull", "qwilfish", "scizor", "shuckle", "heracross", "sneasel", "teddiursa", "ursaring", "slugma", "magcargo", "swinub", "piloswine", "corsola", "remoraid", "octillery", "delibird", "mantine", "skarmory", "houndour", "houndoom", "kingdra", "phanpy", "donphan", "porygon2", "stantler", "smeargle", "tyrogue", "hitmontop", "smoochum", "elekid", "magby", "miltank", "blissey", "raikou", "entei", "suicune", "larvitar", "pupitar", "tyranitar", "lugia", "ho-oh", "celebi", "treecko", "grovyle", "sceptile", "torchic", "combusken", "blaziken", "mudkip", "marshtomp", "swampert", "poochyena", "mightyena", "zigzagoon", "linoone", "wurmple", "silcoon", "beautifly", "cascoon", "dustox", "lotad", "lombre", "ludicolo", "seedot", "nuzleaf", "shiftry", "taillow", "swellow", "wingull", "pelipper", "ralts", "kirlia", "gardevoir", "surskit", "masquerain", "shroomish", "breloom", "slakoth", "vigoroth", "slaking", "nincada", "ninjask", "shedinja", "whismur", "loudred", "exploud", "makuhita", "hariyama", "azurill", "nosepass", "skitty", "delcatty", "sableye", "mawile", "aron", "lairon", "aggron", "meditite", "medicham", "electrike", "manectric", "plusle", "minun", "volbeat", "illumise", "roselia", "gulpin", "swalot", "carvanha", "sharpedo", "wailmer", "wailord", "numel", "camerupt", "torkoal", "spoink", "grumpig", "spinda", "trapinch", "vibrava", "flygon", "cacnea", "cacturne", "swablu", "altaria", "zangoose", "seviper", "lunatone", "solrock", "barboach", "whiscash", "corphish", "crawdaunt", "baltoy", "claydol", "lileep", "cradily", "anorith", "armaldo", "feebas", "milotic", "castform", "kecleon", "shuppet", "banette", "duskull", "dusclops", "tropius", "chimecho", "absol", "wynaut", "snorunt", "glalie", "spheal", "sealeo", "walrein", "clamperl", "huntail", "gorebyss", "relicanth", "luvdisc", "bagon", "shelgon", "salamence", "beldum", "metang", "metagross", "regirock", "regice", "registeel", "latias", "latios", "kyogre", "groudon", "rayquaza", "jirachi", "deoxys-normal", "turtwig", "grotle", "torterra", "chimchar", "monferno", "infernape", "piplup", "prinplup", "empoleon", "starly", "staravia", "staraptor", "bidoof", "bibarel", "kricketot", "kricketune", "shinx", "luxio", "luxray", "budew", "roserade", "cranidos", "rampardos", "shieldon", "bastiodon", "burmy", "wormadam-plant", "mothim", "combee", "vespiquen", "pachirisu", "buizel", "floatzel", "cherubi", "cherrim", "shellos", "gastrodon", "ambipom", "drifloon", "drifblim", "buneary", "lopunny", "mismagius", "honchkrow", "glameow", "purugly", "chingling", "stunky", "skuntank", "bronzor", "bronzong", "bonsly", "mime-jr", "happiny", "chatot", "spiritomb", "gible", "gabite", "garchomp", "munchlax", "riolu", "lucario", "hippopotas", "hippowdon", "skorupi", "drapion", "croagunk", "toxicroak", "carnivine", "finneon", "lumineon", "mantyke", "snover", "abomasnow", "weavile", "magnezone", "lickilicky", "rhyperior", "tangrowth", "electivire", "magmortar", "togekiss", "yanmega", "leafeon", "glaceon", "gliscor", "mamoswine", "porygon-z", "gallade", "probopass", "dusknoir", "froslass", "rotom", "uxie", "mesprit", "azelf", "dialga", "palkia", "heatran", "regigigas", "giratina-altered", "cresselia", "phione", "manaphy", "darkrai", "shaymin-land", "arceus", "victini", "snivy", "servine", "serperior", "tepig", "pignite", "emboar", "oshawott", "dewott", "samurott", "patrat", "watchog", "lillipup", "herdier", "stoutland", "purrloin", "liepard", "pansage", "simisage", "pansear", "simisear", "panpour", "simipour", "munna", "musharna", "pidove", "tranquill", "unfezant", "blitzle", "zebstrika", "roggenrola", "boldore", "gigalith", "woobat", "swoobat", "drilbur", "excadrill", "audino", "timburr", "gurdurr", "conkeldurr", "tympole", "palpitoad", "seismitoad", "throh", "sawk", "sewaddle", "swadloon", "leavanny", "venipede", "whirlipede", "scolipede", "cottonee", "whimsicott", "petilil", "lilligant", "basculin-red-striped", "sandile", "krokorok", "krookodile", "darumaka", "darmanitan-standard", "maractus", "dwebble", "crustle", "scraggy", "scrafty", "sigilyph", "yamask", "cofagrigus", "tirtouga", "carracosta", "archen", "archeops", "trubbish", "garbodor", "zorua", "zoroark", "minccino", "cinccino", "gothita", "gothorita", "gothitelle", "solosis", "duosion", "reuniclus", "ducklett", "swanna", "vanillite", "vanillish", "vanilluxe", "deerling", "sawsbuck", "emolga", "karrablast", "escavalier", "foongus", "amoonguss", "frillish-male", "jellicent-male", "alomomola", "joltik", "galvantula", "ferroseed", "ferrothorn", "klink", "klang", "klinklang", "tynamo", "eelektrik", "eelektross", "elgyem", "beheeyem", "litwick", "lampent", "chandelure", "axew", "fraxure", "haxorus", "cubchoo", "beartic", "cryogonal", "shelmet", "accelgor", "stunfisk", "mienfoo", "mienshao", "druddigon", "golett", "golurk", "pawniard", "bisharp", "bouffalant", "rufflet", "braviary", "vullaby", "mandibuzz", "heatmor", "durant", "deino", "zweilous", "hydreigon", "larvesta", "volcarona", "cobalion", "terrakion", "virizion", "tornadus-incarnate", "thundurus-incarnate", "reshiram", "zekrom", "landorus-incarnate", "kyurem", "keldeo-ordinary", "meloetta-aria", "genesect", "chespin", "quilladin", "chesnaught", "fennekin", "braixen", "delphox", "froakie", "frogadier", "greninja", "bunnelby", "diggersby", "fletchling", "fletchinder", "talonflame", "scatterbug", "spewpa", "vivillon", "litleo", "pyroar-male", "flabebe", "floette", "florges", "skiddo", "gogoat", "pancham", "pangoro", "furfrou", "espurr", "meowstic-male", "honedge", "doublade", "aegislash-shield", "spritzee", "aromatisse", "swirlix", "slurpuff", "inkay", "malamar", "binacle", "barbaracle", "skrelp", "dragalge", "clauncher", "clawitzer", "helioptile", "heliolisk", "tyrunt", "tyrantrum", "amaura", "aurorus", "sylveon", "hawlucha", "dedenne", "carbink", "goomy", "sliggoo", "goodra", "klefki", "phantump", "trevenant", "pumpkaboo-average", "gourgeist-average", "bergmite", "avalugg", "noibat", "noivern", "xerneas", "yveltal", "zygarde-50", "diancie", "hoopa", "volcanion", "rowlet", "dartrix", "decidueye", "litten", "torracat", "incineroar", "popplio", "brionne", "primarina", "pikipek", "trumbeak", "toucannon", "yungoos", "gumshoos", "grubbin", "charjabug", "vikavolt", "crabrawler", "crabominable", "oricorio-baile", "cutiefly", "ribombee", "rockruff", "lycanroc-midday", "wishiwashi-solo", "mareanie", "toxapex", "mudbray", "mudsdale", "dewpider", "araquanid", "fomantis", "lurantis", "morelull", "shiinotic", "salandit", "salazzle", "stufful", "bewear", "bounsweet", "steenee", "tsareena", "comfey", "oranguru", "passimian", "wimpod", "golisopod", "sandygast", "palossand", "pyukumuku", "type-null", "silvally", "minior-red-meteor", "komala", "turtonator", "togedemaru", "mimikyu-disguised", "bruxish", "drampa", "dhelmise", "jangmo-o", "hakamo-o", "kommo-o", "tapu-koko", "tapu-lele", "tapu-bulu", "tapu-fini", "cosmog", "cosmoem", "solgaleo", "lunala", "nihilego", "buzzwole", "pheromosa", "xurkitree", "celesteela", "kartana", "guzzlord", "necrozma", "magearna", "marshadow", "poipole", "naganadel", "stakataka", "blacephalon", "zeraora", "meltan", "melmetal", "grookey", "thwackey", "rillaboom", "scorbunny", "raboot", "cinderace", "sobble", "drizzile", "inteleon", "skwovet", "greedent", "rookidee", "corvisquire", "corviknight", "blipbug", "dottler", "orbeetle", "nickit", "thievul", "gossifleur", "eldegoss", "wooloo", "dubwool", "chewtle", "drednaw", "yamper", "boltund", "rolycoly", "carkol", "coalossal", "applin", "flapple", "appletun", "silicobra", "sandaconda", "cramorant", "arrokuda", "barraskewda", "toxel", "toxtricity-amped", "sizzlipede", "centiskorch", "clobbopus", "grapploct", "sinistea", "polteageist", "hatenna", "hattrem", "hatterene", "impidimp", "morgrem", "grimmsnarl", "obstagoon", "perrserker", "cursola", "sirfetchd", "mr-rime", "runerigus", "milcery", "alcremie", "falinks", "pincurchin", "snom", "frosmoth", "stonjourner", "eiscue-ice", "indeedee-male", "morpeko-full-belly", "cufant", "copperajah", "dracozolt", "arctozolt", "dracovish", "arctovish", "duraludon", "dreepy", "drakloak", "dragapult", "zacian", "zamazenta", "eternatus", "kubfu", "urshifu-single-strike", "zarude", "regieleki", "regidrago", "glastrier", "spectrier", "calyrex", "wyrdeer", "kleavor", "ursaluna", "basculegion-male", "sneasler", "overqwil", "enamorus-incarnate", "sprigatito", "floragato", "meowscarada", "fuecoco", "crocalor", "skeledirge", "quaxly", "quaxwell", "quaquaval", "lechonk", "oinkologne-male", "tarountula", "spidops", "nymble", "lokix", "pawmi", "pawmo", "pawmot", "tandemaus", "maushold-family-of-four", "fidough", "dachsbun", "smoliv", "dolliv", "arboliva", "squawkabilly-green-plumage", "nacli", "naclstack", "garganacl", "charcadet", "armarouge", "ceruledge", "tadbulb", "bellibolt", "wattrel", "kilowattrel", "maschiff", "mabosstiff", "shroodle", "grafaiai", "bramblin", "brambleghast", "toedscool", "toedscruel", "klawf", "capsakid", "scovillain", "rellor", "rabsca", "flittle", "espathra", "tinkatink", "tinkatuff", "tinkaton", "wiglett", "wugtrio", "bombirdier", "finizen", "palafin-zero", "varoom", "revavroom", "cyclizar", "orthworm", "glimmet", "glimmora", "greavard", "houndstone", "flamigo", "cetoddle", "cetitan", "veluza", "dondozo", "tatsugiri-curly", "annihilape", "clodsire", "farigiraf", "dudunsparce-two-segment", "kingambit", "great-tusk", "scream-tail", "brute-bonnet", "flutter-mane", "slither-wing", "sandy-shocks", "iron-treads", "iron-bundle", "iron-hands", "iron-jugulis", "iron-moth", "iron-thorns", "frigibax", "arctibax", "baxcalibur", "gimmighoul", "gholdengo", "wo-chien", "chien-pao", "ting-lu", "chi-yu", "roaring-moon", "iron-valiant", "koraidon", "miraidon", "walking-wake", "iron-leaves", "dipplin", "poltchageist", "sinistcha", "okidogi", "munkidori", "fezandipiti", "ogerpon", "archaludon", "hydrapple", "gouging-fire", "raging-bolt", "iron-boulder", "iron-crown", "terapagos", "pecharunt"];
+const CDN = "https://cdn.jsdelivr.net/gh/PokeAPI/sprites@master/sprites/pokemon/other/official-artwork";
+const CATEGORY_META = {
+  normal: { label: "普通形态", icon: "🃏", cdnShiny: false },
+  shiny:  { label: "闪光形态", icon: "⭐", cdnShiny: true },
+  sticker_deco: { label: "装饰", icon: "⭐", isSticker: true, stickerCat: "装饰" },
+  sticker_symbol: { label: "符号", icon: "🔣", isSticker: true, stickerCat: "符号" },
+  sticker_bubble: { label: "气泡", icon: "💬", isSticker: true, stickerCat: "气泡" },
+  sticker_shape: { label: "形状", icon: "🔷", isSticker: true, stickerCat: "形状" },
+};
+const PER_PAGE = 50;  // thumbnails per page in sprite grid
+let stickerIdCounter = 0;
+let stickers = [];           // {id, src, pokeId, pokeName, category, x, y, w, h, angle, flipH, flipV, zIndex}
+let selectedStickerId = null; // null or sticker id, or 'bg' for background layer
+let currentCanvas = { w: 800, h: 600, color: "#ffffff", bgImage: null, bgX: 0, bgY: 0, bgW: 0, bgH: 0, bgAngle: 0, bgFlipH: false, bgFlipV: false };
+let currentZoom = 1;
+// per-category search & pagination state
+let catState = {};
+for (const k of Object.keys(CATEGORY_META)) {
+  catState[k] = { search: "", page: 1 };
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+document.addEventListener("DOMContentLoaded", () => {
+  // Set initial sidebar width to 1:5 ratio (~16.7% of window, min 200 max 500)
+  const initW = Math.max(200, Math.min(500, Math.round(window.innerWidth / 6)));
+  document.documentElement.style.setProperty("--sidebar-w", initW + "px");
+  buildSpriteSections();
+  refreshAllSpriteGrids();
+  updateToolbarInfo();
+  applyZoom();
+  initSidebarResizer();
+  document.addEventListener("click", onGlobalClick);
+  document.addEventListener("keydown", onKeyDown);
+  // Open first sprite section by default
+  const firstCat = Object.keys(CATEGORY_META)[0];
+  setTimeout(() => {
+    const sec = document.getElementById("sec-" + firstCat);
+    if (sec) sec.classList.add("open");
+  }, 100);
+});
+
+// ============================================================
+//  BUILD SIDEBAR SPRITE SECTIONS
+// ============================================================
+function buildSpriteSections() {
+  const container = document.getElementById("sidebarSections");
+  for (const [cat, meta] of Object.entries(CATEGORY_META)) {
+    let total, searchPlaceholder;
+    if (meta.isSticker) {
+      total = (STICKER_DATA[meta.stickerCat]?.entries || []).length;
+      searchPlaceholder = "搜索贴纸名称…";
+    } else {
+      total = meta.isSticker ? (STICKER_DATA[meta.stickerCat]?.entries || []).length : POKE_NAMES.length;
+      searchPlaceholder = "搜索编号或名称…";
+    }
+    const sec = document.createElement("div");
+    sec.className = "sec";
+    sec.id = "sec-" + cat;
+    sec.innerHTML = `
+      <div class="sec-header" onclick="toggleSection('sec-${cat}')">
+        <span class="sec-icon">${meta.icon}</span> ${meta.label}
+        <span class="sec-count">(${total})</span>
+        <span class="sec-arrow">▶</span>
+      </div>
+      <div class="sec-body">
+        <div class="sec-body-inner">
+          <div class="sprite-search-wrap">
+            <span class="s-icon">🔍</span>
+            <input class="sprite-search" placeholder="${searchPlaceholder}" data-cat="${cat}"
+                   oninput="onSpriteSearch('${cat}', this.value)" value="">
+            <button class="s-clear" data-cat="${cat}" onclick="clearSpriteSearch('${cat}')">✕</button>
+          </div>
+          <div class="sprite-grid" id="grid-${cat}"></div>
+          <div class="sprite-pagination" id="pag-${cat}"></div>
+        </div>
+      </div>`;
+    container.appendChild(sec);
+  }
+}
+
+// ============================================================
+//  ACCORDION
+// ============================================================
+function toggleSection(secId) {
+  document.getElementById(secId).classList.toggle("open");
+}
+
+// ============================================================
+//  BACKGROUND PANEL
+// ============================================================
+function setCanvasSize(w, h) {
+  document.getElementById("canvasW").value = w;
+  document.getElementById("canvasH").value = h;
+}
+function pickColor(color, btn) {
+  document.getElementById("canvasColor").value = color;
+  document.querySelectorAll("#colorPresets button").forEach(b => b.classList.remove("active"));
+  if (btn) btn.classList.add("active");
+}
+function applyCanvas() {
+  const w = parseInt(document.getElementById("canvasW").value) || 800;
+  const h = parseInt(document.getElementById("canvasH").value) || 600;
+  const color = document.getElementById("canvasColor").value;
+  currentCanvas = { w: Math.max(200, Math.min(4000, w)), h: Math.max(200, Math.min(4000, h)), color, bgImage: currentCanvas.bgImage };
+  const stage = document.getElementById("canvasStage");
+  stage.style.width = currentCanvas.w + "px";
+  stage.style.height = currentCanvas.h + "px";
+  applyCanvasBgStyle();
+  // Validate sticker positions
+  stickers.forEach(s => {
+    s.x = Math.min(s.x, currentCanvas.w);
+    s.y = Math.min(s.y, currentCanvas.h);
+  });
+  applyZoom();
+  renderAllStickers();
+  updateToolbarInfo();
+  toast("画布已更新: " + currentCanvas.w + "×" + currentCanvas.h);
+}
+
+function applyCanvasBgStyle() {
+  // Background is now rendered as a bg-layer div, not CSS background
+  if (!currentCanvas.bgImage) {
+    document.getElementById("canvasStage").style.background = currentCanvas.color;
+  } else {
+    document.getElementById("canvasStage").style.background = currentCanvas.color;
+  }
+}
+
+// ── Background image import ──
+function onBgImageSelected(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    const dataUrl = ev.target.result;
+    // Get image dimensions
+    const testImg = new Image();
+    testImg.onload = function() {
+      const nw = testImg.naturalWidth;
+      const nh = testImg.naturalHeight;
+      // Fit to canvas while maintaining aspect ratio
+      let bgW, bgH;
+      const canvasRatio = currentCanvas.w / currentCanvas.h;
+      const imgRatio = nw / nh;
+      if (imgRatio > canvasRatio) { bgW = currentCanvas.w; bgH = currentCanvas.w / imgRatio; }
+      else { bgH = currentCanvas.h; bgW = currentCanvas.h * imgRatio; }
+      currentCanvas.bgImage = dataUrl;
+      currentCanvas.bgX = currentCanvas.w / 2;
+      currentCanvas.bgY = currentCanvas.h / 2;
+      currentCanvas.bgW = bgW;
+      currentCanvas.bgH = bgH;
+      currentCanvas.bgFlipH = false;
+      currentCanvas.bgFlipV = false;
+      applyCanvasBgStyle();
+      renderAllStickers();
+      document.getElementById("bgImgPreview").style.backgroundImage = "url(" + dataUrl + ")";
+      document.getElementById("bgImgPreview").classList.add("show");
+      document.getElementById("btnClearBgImg").style.display = "";
+      toast("背景图片已导入 (可拖拽/缩放/翻转)");
+    };
+    testImg.src = dataUrl;
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearBgImage() {
+  currentCanvas.bgImage = null;
+  if (selectedStickerId === 'bg') selectedStickerId = null;
+  applyCanvasBgStyle();
+  renderAllStickers();
+  document.getElementById("bgImgPreview").classList.remove("show");
+  document.getElementById("bgImgPreview").style.backgroundImage = "";
+  document.getElementById("btnClearBgImg").style.display = "none";
+  document.getElementById("bgImageInput").value = "";
+  toast("背景图片已清除");
+}
+
+// ── Sidebar Resizer ──
+function initSidebarResizer() {
+  const resizer = document.getElementById("sidebarResizer");
+  if (!resizer) return;
+  let startX, startW;
+  resizer.addEventListener("mousedown", e => {
+    e.preventDefault();
+    startX = e.clientX;
+    startW = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--sidebar-w"));
+    resizer.classList.add("active");
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    document.addEventListener("mousemove", onResizeMove);
+    document.addEventListener("mouseup", onResizeUp);
+  });
+  function onResizeMove(e) {
+    const dx = e.clientX - startX;
+    const newW = Math.max(200, Math.min(500, startW + dx));
+    document.documentElement.style.setProperty("--sidebar-w", newW + "px");
+  }
+  function onResizeUp() {
+    resizer.classList.remove("active");
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
+    document.removeEventListener("mousemove", onResizeMove);
+    document.removeEventListener("mouseup", onResizeUp);
+  }
+}
+
+// ============================================================
+//  SPRITE SEARCH & GRID
+// ============================================================
+function getFiltered(cat) {
+  const meta = CATEGORY_META[cat];
+  let entries;
+  if (meta.isSticker) {
+    entries = STICKER_DATA[meta.stickerCat]?.entries || [];
+  } else {
+    // Generate from embedded name list for CDN-based categories
+    entries = POKE_NAMES.map((name, i) => ({
+      id: String(i + 1).padStart(5, "0"),
+      name: name,
+      file: (i + 1) + ".png",
+    }));
+  }
+  const q = catState[cat].search.toLowerCase().trim();
+  if (!q) return entries;
+  return entries.filter(e => e.id.includes(q) || e.name.toLowerCase().includes(q));
+}
+function onSpriteSearch(cat, val) {
+  catState[cat].search = val;
+  catState[cat].page = 1;
+  const clearBtn = document.querySelector(`.s-clear[data-cat="${cat}"]`);
+  if (clearBtn) clearBtn.classList.toggle("show", val.trim().length > 0);
+  refreshSpriteGrid(cat);
+}
+function clearSpriteSearch(cat) {
+  const input = document.querySelector(`.sprite-search[data-cat="${cat}"]`);
+  if (input) input.value = "";
+  catState[cat].search = "";
+  catState[cat].page = 1;
+  const clearBtn = document.querySelector(`.s-clear[data-cat="${cat}"]`);
+  if (clearBtn) clearBtn.classList.remove("show");
+  refreshSpriteGrid(cat);
+}
+function refreshAllSpriteGrids() {
+  for (const cat of Object.keys(CATEGORY_META)) refreshSpriteGrid(cat);
+}
+function refreshSpriteGrid(cat) {
+  const filtered = getFiltered(cat);
+  const totalPages = Math.ceil(filtered.length / PER_PAGE) || 1;
+  let page = catState[cat].page;
+  if (page > totalPages) { page = totalPages; catState[cat].page = page; }
+  const start = (page - 1) * PER_PAGE;
+  const pageItems = filtered.slice(start, start + PER_PAGE);
+  const grid = document.getElementById("grid-" + cat);
+  if (!grid) return;
+  if (pageItems.length === 0) {
+    grid.innerHTML = '<div class="no-result">没有匹配的宝可梦 🥺</div>';
+  } else {
+    const meta = CATEGORY_META[cat];
+    let thumbSrc, thumbClick;
+    grid.innerHTML = pageItems.map(e => {
+      if (meta.isSticker) {
+        thumbSrc = e.src;  // SVG data URI
+        thumbClick = `addSticker('${cat}','${e.id}','${e.id}','${e.name.replace(/'/g,"\\'")}')`;
+      } else {
+        thumbSrc = (meta.basePath || "") + "/" + e.file;
+        thumbClick = `addSticker('${cat}','${e.file}','${e.id}','${e.name.replace(/'/g,"\\'")}')`;
+      }
+      return `
+      <div class="sprite-thumb" onclick="${thumbClick}" title="${e.id} ${e.name}">
+        <img loading="lazy" src="${thumbSrc}" onerror="this.parentElement.innerHTML='❓'">
+        <span class="tid">${meta.isSticker ? '' : e.id}</span>
+      </div>`;
+    }).join("");
+  }
+  // Pagination
+  const pag = document.getElementById("pag-" + cat);
+  if (!pag) return;
+  if (totalPages <= 1) { pag.innerHTML = ""; return; }
+  pag.innerHTML = `
+    <button ${page === 1 ? "disabled" : ""} onclick="goSpritePage('${cat}',${page - 1})">◀</button>
+    <span>${page}/${totalPages}</span>
+    <button ${page === totalPages ? "disabled" : ""} onclick="goSpritePage('${cat}',${page + 1})">▶</button>`;
+}
+function goSpritePage(cat, p) {
+  catState[cat].page = p;
+  refreshSpriteGrid(cat);
+}
+
+// ============================================================
+//  STICKER OPERATIONS
+// ============================================================
+function addSticker(cat, file, pokeId, pokeName) {
+  // Place at canvas center
+  const cx = currentCanvas.w / 2;
+  const cy = currentCanvas.h / 2;
+  const id = ++stickerIdCounter;
+  const meta = CATEGORY_META[cat];
+  let src;
+  if (meta.isSticker) {
+    const entries = STICKER_DATA[meta.stickerCat]?.entries || [];
+    const entry = entries.find(e => e.id === file);
+    src = entry ? entry.src : file;
+  } else if (meta.cdnShiny !== undefined) {
+    // PokéAPI CDN
+    const numId = parseInt(pokeId) || 1;
+    src = meta.cdnShiny ? CDN + "/shiny/" + numId + ".png" : CDN + "/" + numId + ".png";
+  } else {
+    src = meta ? meta.basePath + "/" + file : file;
+  }
+  // Find max zIndex
+  const maxZ = stickers.reduce((m, s) => Math.max(m, s.zIndex), 0);
+  stickers.push({
+    id, src: src,
+    pokeId, pokeName, category: cat,
+    x: cx, y: cy, w: null, h: null, angle: 0, flipH: false, flipV: false,
+    zIndex: maxZ + 1
+  });
+  selectSticker(id);
+  renderAllStickers();
+  updateToolbarInfo();
+  hideCanvasHint();
+  if (meta.isSticker) {
+    toast("已添加贴纸: " + pokeName.replace(/_/g, " "));
+  } else {
+    toast("已添加 #" + pokeId + " " + pokeName.replace(/_/g, " "));
+  }
+}
+
+// ── Text sticker ──
+function updateTextColorPreset(btn) {
+  document.querySelectorAll("#textColorPresets button").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+}
+function toggleTextStyle(style, btn) {
+  btn.classList.toggle("active");
+  if (btn.classList.contains("active")) btn.style.background = "#f5ead0";
+  else btn.style.background = "#fffdf8";
+}
+function addTextSticker() {
+  const text = document.getElementById("textInput").value.trim();
+  if (!text) { toast("请先输入文字内容"); return; }
+  const fontSize = parseInt(document.getElementById("textSize").value) || 48;
+  const color = document.getElementById("textColor").value;
+  const isBold = document.getElementById("btnBold").classList.contains("active");
+  const isItalic = document.getElementById("btnItalic").classList.contains("active");
+  const isUnderline = document.getElementById("btnUnderline").classList.contains("active");
+  const strokeColor = document.getElementById("textStroke").value;
+  const strokeW = parseFloat(document.getElementById("textStrokeW").value) || 0;
+  // Build SVG text as data URI
+  const escapedText = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  // Measure SVG width approximately
+  let estWidth = 0;
+  for (const ch of text) {
+    estWidth += (ch.charCodeAt(0) > 255) ? fontSize : fontSize * 0.6;
+  }
+  if (isItalic) estWidth += fontSize * 0.3;
+  const svgW = Math.max(estWidth + 50 + strokeW * 4, 100);
+  const svgH = fontSize + 35 + strokeW * 4;
+  let textAttrs = `font-size="${fontSize}" font-family="PingFang SC,Microsoft YaHei,Noto Sans SC,sans-serif" fill="${color}"`;
+  if (isBold) textAttrs += ' font-weight="bold"';
+  if (isItalic) textAttrs += ' font-style="italic"';
+  if (strokeW > 0) {
+    textAttrs += ` stroke="${strokeColor}" stroke-width="${strokeW}" paint-order="stroke fill"`;
+  }
+  let svgContent = `<text x="${svgW/2}" y="${fontSize + 10 + strokeW}" text-anchor="middle" ${textAttrs}>${escapedText}</text>`;
+  if (isUnderline) {
+    const ulY = fontSize + 16 + strokeW;
+    svgContent += `<line x1="${svgW/2 - estWidth/2}" y1="${ulY}" x2="${svgW/2 + estWidth/2}" y2="${ulY}" stroke="${color}" stroke-width="${Math.max(2, fontSize*0.05)}"/>`;
+  }
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}">${svgContent}</svg>`;
+  const dataUri = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svg)));
+  // Add as sticker
+  const cx = currentCanvas.w / 2;
+  const cy = currentCanvas.h / 2;
+  const id = ++stickerIdCounter;
+  const maxZ = stickers.reduce((m, s) => Math.max(m, s.zIndex), 0);
+  stickers.push({
+    id, src: dataUri,
+    pokeId: "TXT", pokeName: text, category: "text",
+    x: cx, y: cy, w: svgW, h: svgH, angle: 0, flipH: false, flipV: false,
+    zIndex: maxZ + 1
+  });
+  selectSticker(id);
+  renderAllStickers();
+  updateToolbarInfo();
+  hideCanvasHint();
+  toast("已添加文字: " + text);
+  document.getElementById("textInput").value = "";
+}
+
+// ── Import user image as sticker ──
+function importUserImage(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    const cx = currentCanvas.w / 2;
+    const cy = currentCanvas.h / 2;
+    const id = ++stickerIdCounter;
+    const maxZ = stickers.reduce((m, s) => Math.max(m, s.zIndex), 0);
+    const fname = file.name.replace(/\.[^.]+$/, "");
+    stickers.push({
+      id, src: ev.target.result,
+      pokeId: "???", pokeName: fname, category: "import",
+      x: cx, y: cy, w: null, h: null, angle: 0, flipH: false, flipV: false,
+      zIndex: maxZ + 1
+    });
+    selectSticker(id);
+    renderAllStickers();
+    updateToolbarInfo();
+    hideCanvasHint();
+    toast("已导入: " + fname);
+  };
+  reader.readAsDataURL(file);
+  e.target.value = "";
+}
+
+function selectSticker(id) {
+  selectedStickerId = id;
+  renderAllStickers();
+}
+
+function deselectAll() {
+  selectedStickerId = null;
+  renderAllStickers();
+}
+
+function getStickerById(id) { return stickers.find(s => s.id === id); }
+
+function removeSticker(id) {
+  stickers = stickers.filter(s => s.id !== id);
+  if (selectedStickerId === id) selectedStickerId = null;
+  renderAllStickers();
+  updateToolbarInfo();
+  if (stickers.length === 0) showCanvasHint();
+}
+
+function duplicateSticker(id) {
+  const s = getStickerById(id);
+  if (!s) return;
+  const maxZ = stickers.reduce((m, st) => Math.max(m, st.zIndex), 0);
+  stickers.push({
+    id: ++stickerIdCounter, src: s.src,
+    pokeId: s.pokeId, pokeName: s.pokeName + "(副本)", category: s.category,
+    x: s.x + 25, y: s.y + 25, w: s.w, h: s.h, angle: s.angle,
+    flipH: s.flipH, flipV: s.flipV, zIndex: maxZ + 1
+  });
+  renderAllStickers();
+  updateToolbarInfo();
+  toast("图层已复制");
+}
+function clipSticker(id) {
+  const s = getStickerById(id);
+  if (!s) return;
+  // Toggle clipping — search for a sticker below this one and clip to it
+  // Simple implementation: apply CSS clip-path based on the sticker below
+  const sorted = [...stickers].sort((a, b) => a.zIndex - b.zIndex);
+  const idx = sorted.findIndex(st => st.id === id);
+  if (idx <= 0) { toast("下方没有可用的蒙版图层"); return; }
+  const below = sorted[idx - 1];
+  // Find DOM elements and apply clipping
+  const el = document.querySelector('.sticker[data-sticker-id="' + id + '"]');
+  const belowEl = document.querySelector('.sticker[data-sticker-id="' + below.id + '"]');
+  if (el && belowEl) {
+    if (el.style.clipPath && el.style.clipPath !== 'none') {
+      el.style.clipPath = '';
+      el.style.outline = '';
+      toast("蒙版已取消");
+    } else {
+      // Use the below sticker's bounding box as clip region (in canvas coords)
+      const bw = below.w || (belowEl.querySelector('img')?.offsetWidth || 96);
+      const bh = below.h || (belowEl.querySelector('img')?.offsetHeight || 96);
+      if (bw && bh) {
+        const left = ((below.x - bw/2) / currentCanvas.w) * 100;
+        const top = ((below.y - bh/2) / currentCanvas.h) * 100;
+        const w = (bw / currentCanvas.w) * 100;
+        const h = (bh / currentCanvas.h) * 100;
+        el.style.clipPath = 'inset(' + top + '% ' + (100 - left - w) + '% ' + (100 - top - h) + '% ' + left + '%)';
+        el.style.outline = '2px dashed #6b8f5e';
+        toast("蒙版已应用 — 点击✂可取消");
+      }
+    }
+  }
+}
+function clearAllStickers() {
+  if (stickers.length === 0) return;
+  if (!confirm("确定要清除画布上的全部 " + stickers.length + " 张贴纸吗？")) return;
+  stickers = [];
+  selectedStickerId = null;
+  renderAllStickers();
+  updateToolbarInfo();
+  showCanvasHint();
+}
+
+// Rotation
+function rotateSticker(id, deg) {
+  const s = getStickerById(id);
+  if (!s) return;
+  s.angle = ((s.angle || 0) + deg) % 360;
+  renderAllStickers();
+}
+// Flip
+function flipSticker(id, dir) {
+  const s = getStickerById(id);
+  if (!s) return;
+  if (dir === "flipH") s.flipH = !s.flipH;
+  if (dir === "flipV") s.flipV = !s.flipV;
+  renderAllStickers();
+}
+function rotateBg(deg) {
+  currentCanvas.bgAngle = ((currentCanvas.bgAngle || 0) + deg) % 360;
+  renderAllStickers();
+}
+
+// Layer ops
+function layerOp(id, op) {
+  const s = getStickerById(id);
+  if (!s || stickers.length < 2) return;
+  const sorted = [...stickers].sort((a, b) => a.zIndex - b.zIndex);
+  const idx = sorted.findIndex(st => st.id === id);
+  if (idx < 0) return;
+  if (op === "toFront") {
+    const maxZ = Math.max(...stickers.map(st => st.zIndex));
+    s.zIndex = maxZ + 1;
+  } else if (op === "toBack") {
+    const minZ = Math.min(...stickers.map(st => st.zIndex));
+    s.zIndex = minZ - 1;
+  } else if (op === "forward" && idx < sorted.length - 1) {
+    const above = sorted[idx + 1];
+    const tmp = s.zIndex;
+    s.zIndex = above.zIndex;
+    above.zIndex = tmp;
+  } else if (op === "backward" && idx > 0) {
+    const below = sorted[idx - 1];
+    const tmp = s.zIndex;
+    s.zIndex = below.zIndex;
+    below.zIndex = tmp;
+  }
+  renderAllStickers();
+}
+
+// ============================================================
+//  RENDER STICKERS ON CANVAS
+// ============================================================
+function renderAllStickers() {
+  const stage = document.getElementById("canvasStage");
+  // Remove existing stickers, toolbars, bg-layer
+  stage.querySelectorAll(".sticker,.sticker-tools-wrap,.bg-layer,.resize-handle").forEach(el => { el.style.clipPath = ''; el.remove(); });
+
+  // ── Render background layer ──
+  if (currentCanvas.bgImage) {
+    const bgEl = document.createElement("div");
+    bgEl.className = "bg-layer";
+    if (selectedStickerId === 'bg') bgEl.classList.add("selected");
+    bgEl.style.left = currentCanvas.bgX + "px";
+    bgEl.style.top = currentCanvas.bgY + "px";
+    bgEl.style.width = currentCanvas.bgW + "px";
+    bgEl.style.height = currentCanvas.bgH + "px";
+    let transform = "translate(-50%, -50%)";
+    if (currentCanvas.bgAngle) transform += " rotate(" + currentCanvas.bgAngle + "deg)";
+    if (currentCanvas.bgFlipH) transform += " scaleX(-1)";
+    if (currentCanvas.bgFlipV) transform += " scaleY(-1)";
+    bgEl.style.transform = transform;
+    bgEl.innerHTML = `<img src="${currentCanvas.bgImage}" alt="背景" draggable="false" style="width:100%;height:100%;object-fit:fill" onerror="this.style.opacity='0.3'">`;
+    // Add resize handles if selected
+    // Resize handles for bg are now rendered separately
+    bgEl.addEventListener("mousedown", e => onBgMouseDown(e));
+    bgEl.addEventListener("dblclick", e => { e.stopPropagation(); flipBg('flipH'); });
+    stage.appendChild(bgEl);
+  }
+
+  // ── Render stickers ──
+  const sorted = [...stickers].sort((a, b) => a.zIndex - b.zIndex);
+  sorted.forEach(s => {
+    const el = document.createElement("div");
+    el.className = "sticker";
+    if (s.id === selectedStickerId) el.classList.add("selected");
+    el.dataset.stickerId = s.id;
+    el.style.left = s.x + "px";
+    el.style.top = s.y + "px";
+    el.style.zIndex = s.zIndex;
+    // build transform
+    let transform = "translate(-50%, -50%)";
+    if (s.angle) transform += " rotate(" + s.angle + "deg)";
+    if (s.flipH) transform += " scaleX(-1)";
+    if (s.flipV) transform += " scaleY(-1)";
+    el.style.transform = transform;
+    const imgStyle = (s.w && s.h) ? `width:${s.w}px;height:${s.h}px;max-width:none;max-height:none;object-fit:fill` : "";
+    let inner = `<img src="${s.src}" alt="${s.pokeName}" draggable="false" style="${imgStyle}" onerror="this.style.opacity='0.3'">`;
+    el.innerHTML = inner;
+    // Drag events
+    el.addEventListener("mousedown", e => onStickerMouseDown(e, s.id));
+    el.addEventListener("touchstart", e => onStickerTouchStart(e, s.id), {passive:false});
+    el.addEventListener("dblclick", e => { e.stopPropagation(); flipSticker(s.id, "flipH"); });
+    stage.appendChild(el);
+  });
+
+  // ── Render resize handles for selected sticker/bg ──
+  if (selectedStickerId && selectedStickerId !== 'bg' && getStickerById(selectedStickerId)) {
+    const s = getStickerById(selectedStickerId);
+    const imgEl = document.querySelector(`.sticker[data-sticker-id="${selectedStickerId}"] img`);
+    const curW = s.w || (imgEl ? imgEl.offsetWidth || imgEl.naturalWidth || 96 : 96);
+    const curH = s.h || (imgEl ? imgEl.offsetHeight || imgEl.naturalHeight || 96 : 96);
+    renderResizeHandles(stage, s.x, s.y, curW, curH, String(selectedStickerId), false);
+  }
+  if (selectedStickerId === 'bg' && currentCanvas.bgImage) {
+    renderResizeHandles(stage, currentCanvas.bgX, currentCanvas.bgY, currentCanvas.bgW, currentCanvas.bgH, 'bg', true);
+  }
+
+  // ── Render floating toolbar for selected sticker ──
+  if (selectedStickerId && selectedStickerId !== 'bg' && getStickerById(selectedStickerId)) {
+    const sel = getStickerById(selectedStickerId);
+    renderFloatingToolbar(sel.x, sel.y, false);
+  }
+  // ── Render floating toolbar for selected background ──
+  if (selectedStickerId === 'bg' && currentCanvas.bgImage) {
+    renderFloatingToolbar(currentCanvas.bgX, currentCanvas.bgY, true);
+  }
+
+  if (stickers.length === 0 && !currentCanvas.bgImage) showCanvasHint();
+  else hideCanvasHint();
+  refreshLayerPanel();
+}
+
+function buildResizeHandlesHTML() {
+  const handles = ['nw','n','ne','e','se','s','sw','w'];
+  return handles.map(h => `<div class="resize-handle ${h}" data-handle="${h}"></div>`).join("");
+}
+// Legacy alias
+function buildResizeHandles() { return buildResizeHandlesHTML(); }
+
+// ── Render resize handles as separate stage-level elements ──
+function renderResizeHandles(stage, cx, cy, w, h, targetId, isBg) {
+  const positions = {
+    nw: { left: cx - w/2 - 5, top: cy - h/2 - 5 },
+    n:  { left: cx - 5, top: cy - h/2 - 5 },
+    ne: { left: cx + w/2 - 5, top: cy - h/2 - 5 },
+    e:  { left: cx + w/2 - 5, top: cy - 5 },
+    se: { left: cx + w/2 - 5, top: cy + h/2 - 5 },
+    s:  { left: cx - 5, top: cy + h/2 - 5 },
+    sw: { left: cx - w/2 - 5, top: cy + h/2 - 5 },
+    w:  { left: cx - w/2 - 5, top: cy - 5 },
+  };
+  for (const [h, pos] of Object.entries(positions)) {
+    const handle = document.createElement("div");
+    handle.className = `resize-handle ${h}`;
+    handle.style.cssText = `position:absolute;left:${pos.left}px;top:${pos.top}px;margin:0;right:auto;bottom:auto;z-index:10001;`;
+    handle.dataset.handle = h;
+    handle.dataset.targetId = targetId;
+    handle.dataset.isBg = isBg ? "1" : "0";
+    handle.addEventListener("mousedown", e => onHandleMouseDown(e));
+    handle.addEventListener("touchstart", e => onHandleTouchStart(e), {passive: false});
+    stage.appendChild(handle);
+  }
+}
+
+function renderFloatingToolbar(cx, cy, isBg) {
+  const stage = document.getElementById("canvasStage");
+  const wrap = document.createElement("div");
+  wrap.className = "sticker-tools-wrap";
+  wrap.style.cssText = `position:absolute;left:${cx}px;top:${cy}px;z-index:9999;`;
+  wrap.innerHTML = document.getElementById("stickerToolsProto").innerHTML;
+  // Remove delete button for background
+  if (isBg) {
+    const delBtn = wrap.querySelector("button[data-action='delete']");
+    if (delBtn) delBtn.remove();
+  }
+  wrap.querySelectorAll("button").forEach(btn => {
+    const action = btn.dataset.action;
+    btn.addEventListener("mousedown", e => { e.stopPropagation(); e.preventDefault(); });
+    btn.addEventListener("click", e => {
+      e.stopPropagation(); e.preventDefault();
+      if (isBg) {
+        if (action === "rotateCW") rotateBg(15);
+        else if (action === "flipH" || action === "flipV") flipBg(action);
+        else if (action !== "delete") layerOpBg(action);
+      } else {
+        if (action === "delete") removeSticker(selectedStickerId);
+        else if (action === "rotateCW") rotateSticker(selectedStickerId, 15);
+	        else if (action === "flipH" || action === "flipV") flipSticker(selectedStickerId, action);
+        else layerOp(selectedStickerId, action);
+      }
+    });
+  });
+  stage.appendChild(wrap);
+}
+
+function showCanvasHint() {
+  const hint = document.getElementById("canvasHint");
+  if (hint) hint.style.display = "";
+}
+function hideCanvasHint() {
+  const hint = document.getElementById("canvasHint");
+  if (hint) hint.style.display = "none";
+}
+
+// ============================================================
+//  LAYER PANEL
+// ============================================================
+function refreshLayerPanel() {
+  const list = document.getElementById("layerList");
+  const countEl = document.getElementById("layerCount");
+  if (!list || !countEl) return;
+  const total = stickers.length + (currentCanvas.bgImage ? 1 : 0);
+  countEl.textContent = "(" + total + ")";
+  let html = "";
+  // Sort by zIndex descending (top layer first)
+  const sorted = [...stickers].sort((a, b) => b.zIndex - a.zIndex);
+  sorted.forEach((s, i) => {
+    html += `
+    <div class="layer-item${s.id === selectedStickerId ? ' selected' : ''}"
+         draggable="true"
+         data-sticker-id="${s.id}"
+         data-layer-index="${i}"
+         onclick="selectSticker(${s.id})"
+         ondragstart="onLayerDragStart(event, ${i})"
+         ondragend="onLayerDragEnd(event)"
+         ondragover="onLayerDragOver(event, ${i})"
+         ondragleave="onLayerDragLeave(event)"
+         ondrop="onLayerDrop(event, ${i})">
+      <span class="layer-handle">⋮⋮</span>
+      <div class="layer-thumb">
+        <img src="${s.src}" alt="${s.pokeName}" onerror="this.parentElement.textContent='❓'">
+      </div>
+      <div class="layer-info">
+        <div class="li-name">${s.pokeName.replace(/_/g, ' ')}</div>
+        <div class="li-id">${s.pokeId && s.pokeId !== '???' ? 'No.' + s.pokeId : ''}</div>
+      </div>
+      <div class="layer-actions">
+        <button title="复制图层" onclick="event.stopPropagation();duplicateSticker(${s.id})" style="color:#4a90d9">📋</button>
+        <button title="上移一层" onclick="event.stopPropagation();layerOp(${s.id},'forward')">⬆</button>
+        <button title="下移一层" onclick="event.stopPropagation();layerOp(${s.id},'backward')">⬇</button>
+        <button title="裁剪蒙版" onclick="event.stopPropagation();clipSticker(${s.id})" style="color:#6b8f5e">✂</button>
+        <button title="删除" class="del" onclick="event.stopPropagation();removeSticker(${s.id})">✕</button>
+      </div>
+    </div>`;
+  });
+  // Add background layer at the bottom if present
+  if (currentCanvas.bgImage) {
+    html += `
+    <div class="layer-item${selectedStickerId === 'bg' ? ' selected' : ''}"
+         onclick="selectBg()"
+         style="border-color:#c0a8d0;background:#fdf8ff">
+      <span class="layer-handle">🖼</span>
+      <div class="layer-thumb">
+        <img src="${currentCanvas.bgImage}" alt="背景" onerror="this.parentElement.textContent='🖼'">
+      </div>
+      <div class="layer-info">
+        <div class="li-name" style="color:#7a5a9a">背景图片</div>
+        <div class="li-id">底层</div>
+      </div>
+      <div class="layer-actions">
+        <button title="清除背景" class="del" onclick="event.stopPropagation();clearBgImage()">✕</button>
+      </div>
+    </div>`;
+  }
+  if (!html && !currentCanvas.bgImage) {
+    html = '<div class="layer-empty"><span>📭</span>画布上还没有贴纸<br>从下方栏目添加宝可梦吧~</div>';
+  }
+  list.innerHTML = html;
+}
+
+// ── Layer Drag & Drop ──
+let layerDragSrcIndex = null;
+
+function onLayerDragStart(e, index) {
+  layerDragSrcIndex = index;
+  const el = e.target.closest(".layer-item");
+  if (el) {
+    el.classList.add("dragging-src");
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(index));
+  }
+}
+
+function onLayerDragEnd(e) {
+  document.querySelectorAll(".layer-item").forEach(el => el.classList.remove("dragging-src", "drag-over"));
+  layerDragSrcIndex = null;
+}
+
+function onLayerDragOver(e, index) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+  if (index === layerDragSrcIndex) return;
+  document.querySelectorAll(".layer-item").forEach(el => el.classList.remove("drag-over"));
+  const el = e.target.closest(".layer-item");
+  if (el && !el.classList.contains("dragging-src")) {
+    el.classList.add("drag-over");
+  }
+}
+
+function onLayerDragLeave(e) {
+  const el = e.target.closest(".layer-item");
+  // Only remove if we're actually leaving the item
+  if (el && !el.contains(e.relatedTarget)) {
+    el.classList.remove("drag-over");
+  }
+}
+
+function onLayerDrop(e, targetIndex) {
+  e.preventDefault();
+  document.querySelectorAll(".layer-item").forEach(el => el.classList.remove("dragging-src", "drag-over"));
+  if (layerDragSrcIndex === null || layerDragSrcIndex === targetIndex) return;
+  // Get sorted stickers (by zIndex descending)
+  const sorted = [...stickers].sort((a, b) => b.zIndex - a.zIndex);
+  if (layerDragSrcIndex < 0 || layerDragSrcIndex >= sorted.length) return;
+  if (targetIndex < 0 || targetIndex >= sorted.length) return;
+  // Remove the dragged item
+  const [moved] = sorted.splice(layerDragSrcIndex, 1);
+  // Insert at target position
+  sorted.splice(targetIndex, 0, moved);
+  // Reassign zIndex: top (first) gets highest zIndex
+  const baseZ = sorted.length;
+  sorted.forEach((s, i) => {
+    s.zIndex = baseZ - i; // first in list = highest zIndex
+  });
+  layerDragSrcIndex = null;
+  renderAllStickers();
+  toast("图层顺序已更新");
+}
+
+// ============================================================
+//  BACKGROUND LAYER OPERATIONS
+// ============================================================
+function selectBg() { selectedStickerId = 'bg'; renderAllStickers(); }
+function flipBg(dir) {
+  if (dir === "flipH") currentCanvas.bgFlipH = !currentCanvas.bgFlipH;
+  if (dir === "flipV") currentCanvas.bgFlipV = !currentCanvas.bgFlipV;
+  renderAllStickers();
+}
+function layerOpBg(op) {
+  if (op === "toFront" || op === "forward") {
+    const minZ = stickers.reduce((m, s) => Math.min(m, s.zIndex), 9999);
+    stickers.forEach(s => { s.zIndex += 1; });
+  } else if (op === "toBack" || op === "backward") {
+    // background is always at bottom, no action needed
+  }
+  renderAllStickers();
+}
+
+// ============================================================
+//  DRAG & DROP (stickers + background + resize)
+// ============================================================
+let dragState = null;
+// dragState can be: {type:'move', stickerId} | {type:'moveBg'} | {type:'resize', stickerId, handle} | {type:'resizeBg', handle}
+// For resize: also has startMouseX, startMouseY, startX, startY, startW, startH, startFlipH, startFlipV
+
+// ============================================================
+//  ZOOM
+// ============================================================
+function zoomIn() {
+  const levels = [0.25, 0.33, 0.5, 0.67, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3];
+  let idx = levels.findIndex(v => v >= currentZoom + 0.01);
+  if (idx < 0) idx = levels.length - 1;
+  currentZoom = levels[Math.min(idx, levels.length - 1)];
+  applyZoom();
+}
+function zoomOut() {
+  const levels = [0.25, 0.33, 0.5, 0.67, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3];
+  let idx = levels.findIndex(v => v >= currentZoom - 0.01);
+  if (idx < 0) idx = levels.length - 1;
+  idx = Math.max(0, idx - 1);
+  currentZoom = levels[idx];
+  applyZoom();
+}
+function resetZoom() {
+  currentZoom = 1;
+  applyZoom();
+  toast("缩放已重置为 100%");
+}
+function applyZoom() {
+  const stage = document.getElementById("canvasStage");
+  stage.style.transform = "scale(" + currentZoom + ")";
+  stage.style.transformOrigin = "0 0";
+  // Adjust the stage container size hint so scrollbars work correctly
+  stage.style.marginBottom = (currentCanvas.h * (currentZoom - 1)) + "px";
+  stage.style.marginRight = (currentCanvas.w * (currentZoom - 1)) + "px";
+  document.getElementById("zoomVal").textContent = Math.round(currentZoom * 100) + "%";
+}
+
+function getCanvasPos(e) {
+  const stage = document.getElementById("canvasStage");
+  const rect = stage.getBoundingClientRect();
+  return {
+    x: (e.clientX - rect.left) / currentZoom,
+    y: (e.clientY - rect.top) / currentZoom
+  };
+}
+
+function onStickerMouseDown(e, id) {
+  if (e.button !== 0) return;
+  e.stopPropagation();
+  e.preventDefault();
+  selectSticker(id);
+  const pos = getCanvasPos(e);
+  const s = getStickerById(id);
+  if (!s) return;
+  dragState = { type: "move", stickerId: id, startX: pos.x, startY: pos.y, origX: s.x, origY: s.y };
+  const el = document.querySelector(`.sticker[data-sticker-id="${id}"]`);
+  if (el) el.classList.add("dragging");
+  document.addEventListener("mousemove", onMouseMove);
+  document.addEventListener("mouseup", onMouseUp);
+}
+
+// Background drag
+function onBgMouseDown(e) {
+  if (e.button !== 0) return;
+  e.stopPropagation();
+  e.preventDefault();
+  selectBg();
+  const pos = getCanvasPos(e);
+  dragState = { type: "moveBg", startX: pos.x, startY: pos.y, origX: currentCanvas.bgX, origY: currentCanvas.bgY };
+  const el = document.querySelector(".bg-layer");
+  if (el) el.classList.add("dragging");
+  document.addEventListener("mousemove", onMouseMove);
+  document.addEventListener("mouseup", onMouseUp);
+}
+
+// ── New handle event handlers (handles are now stage-level elements) ──
+function onHandleMouseDown(e) {
+  e.stopPropagation();
+  e.preventDefault();
+  const h = e.currentTarget;
+  const targetId = h.dataset.targetId;
+  const isBg = h.dataset.isBg === "1";
+  if (isBg) {
+    const pos = getCanvasPos(e);
+    dragState = {
+      type: "resizeBg", handle: h.dataset.handle,
+      startMouseX: pos.x, startMouseY: pos.y,
+      startX: currentCanvas.bgX, startY: currentCanvas.bgY,
+      startW: currentCanvas.bgW, startH: currentCanvas.bgH,
+      startFlipH: currentCanvas.bgFlipH, startFlipV: currentCanvas.bgFlipV
+    };
+  } else {
+    const id = parseInt(targetId);
+    const s = getStickerById(id);
+    if (!s) return;
+    const el = document.querySelector(`.sticker[data-sticker-id="${targetId}"]`);
+    const img = el ? el.querySelector("img") : null;
+    const curW = s.w || (img ? img.offsetWidth || img.naturalWidth || 96 : 96);
+    const curH = s.h || (img ? img.offsetHeight || img.naturalHeight || 96 : 96);
+    const pos = getCanvasPos(e);
+    dragState = {
+      type: "resize", stickerId: id, handle: h.dataset.handle,
+      startMouseX: pos.x, startMouseY: pos.y,
+      startX: s.x, startY: s.y,
+      startW: curW, startH: curH,
+      startFlipH: s.flipH, startFlipV: s.flipV
+    };
+  }
+  document.addEventListener("mousemove", onResizeMove);
+  document.addEventListener("mouseup", onResizeUp);
+}
+
+function onHandleTouchStart(e) {
+  e.stopPropagation();
+  e.preventDefault();
+  const h = e.currentTarget;
+  const targetId = h.dataset.targetId;
+  const isBg = h.dataset.isBg === "1";
+  const touch = e.touches[0];
+  if (!touch) return;
+  if (isBg) {
+    const pos = getCanvasPos(touch);
+    dragState = {
+      type: "resizeBg", handle: h.dataset.handle,
+      startMouseX: pos.x, startMouseY: pos.y,
+      startX: currentCanvas.bgX, startY: currentCanvas.bgY,
+      startW: currentCanvas.bgW, startH: currentCanvas.bgH,
+      startFlipH: currentCanvas.bgFlipH, startFlipV: currentCanvas.bgFlipV
+    };
+  } else {
+    const id = parseInt(targetId);
+    const s = getStickerById(id);
+    if (!s) return;
+    const el = document.querySelector(`.sticker[data-sticker-id="${targetId}"]`);
+    const img = el ? el.querySelector("img") : null;
+    const curW = s.w || (img ? img.offsetWidth || img.naturalWidth || 96 : 96);
+    const curH = s.h || (img ? img.offsetHeight || img.naturalHeight || 96 : 96);
+    const pos = getCanvasPos(touch);
+    dragState = {
+      type: "resize", stickerId: id, handle: h.dataset.handle,
+      startMouseX: pos.x, startMouseY: pos.y,
+      startX: s.x, startY: s.y,
+      startW: curW, startH: curH,
+      startFlipH: s.flipH, startFlipV: s.flipV
+    };
+  }
+  document.addEventListener("touchmove", onTouchResizeMove);
+  document.addEventListener("touchend", onTouchResizeUp);
+}
+
+// ── Resize start (legacy, kept for reference) ──
+function startResize(e, id, handle) {
+  const s = getStickerById(id);
+  if (!s) return;
+  const el = document.querySelector(`.sticker[data-sticker-id="${id}"]`);
+  const img = el ? el.querySelector("img") : null;
+  const curW = s.w || (img ? img.offsetWidth || img.naturalWidth : 96);
+  const curH = s.h || (img ? img.offsetHeight || img.naturalHeight : 96);
+  const pos = getCanvasPos(e);
+  dragState = {
+    type: "resize", stickerId: id, handle,
+    startMouseX: pos.x, startMouseY: pos.y,
+    startX: s.x, startY: s.y,
+    startW: curW, startH: curH,
+    startFlipH: s.flipH, startFlipV: s.flipV
+  };
+  document.addEventListener("mousemove", onResizeMove);
+  document.addEventListener("mouseup", onResizeUp);
+}
+
+function startResizeBg(e, handle) {
+  const pos = getCanvasPos(e);
+  dragState = {
+    type: "resizeBg", handle,
+    startMouseX: pos.x, startMouseY: pos.y,
+    startX: currentCanvas.bgX, startY: currentCanvas.bgY,
+    startW: currentCanvas.bgW, startH: currentCanvas.bgH,
+    startFlipH: currentCanvas.bgFlipH, startFlipV: currentCanvas.bgFlipV
+  };
+  document.addEventListener("mousemove", onResizeMove);
+  document.addEventListener("mouseup", onResizeUp);
+}
+
+function onMouseMove(e) {
+  if (!dragState) return;
+  const pos = getCanvasPos(e);
+  const dx = pos.x - dragState.startX;
+  const dy = pos.y - dragState.startY;
+
+  if (dragState.type === "move") {
+    let nx = dragState.origX + dx;
+    let ny = dragState.origY + dy;
+    nx = Math.max(0, Math.min(currentCanvas.w, nx));
+    ny = Math.max(0, Math.min(currentCanvas.h, ny));
+    const s = getStickerById(dragState.stickerId);
+    if (s) { s.x = nx; s.y = ny; }
+    const el = document.querySelector(`.sticker[data-sticker-id="${dragState.stickerId}"]`);
+    if (el) { el.style.left = nx + "px"; el.style.top = ny + "px"; }
+    const wrap = document.querySelector(".sticker-tools-wrap");
+    if (wrap) { wrap.style.left = nx + "px"; wrap.style.top = ny + "px"; }
+  } else if (dragState.type === "moveBg") {
+    let nx = dragState.origX + dx;
+    let ny = dragState.origY + dy;
+    nx = Math.max(0, Math.min(currentCanvas.w, nx));
+    ny = Math.max(0, Math.min(currentCanvas.h, ny));
+    currentCanvas.bgX = nx; currentCanvas.bgY = ny;
+    const el = document.querySelector(".bg-layer");
+    if (el) { el.style.left = nx + "px"; el.style.top = ny + "px"; }
+    const wrap = document.querySelector(".sticker-tools-wrap");
+    if (wrap) { wrap.style.left = nx + "px"; wrap.style.top = ny + "px"; }
+  }
+}
+
+function onMouseUp(e) {
+  document.removeEventListener("mousemove", onMouseMove);
+  document.removeEventListener("mouseup", onMouseUp);
+  if (dragState && (dragState.type === "move" || dragState.type === "moveBg")) {
+    const sel = dragState.type === "moveBg" ? ".bg-layer" : `.sticker[data-sticker-id="${dragState.stickerId}"]`;
+    const el = document.querySelector(sel);
+    if (el) el.classList.remove("dragging");
+    dragState = null;
+    renderAllStickers();
+  }
+}
+
+// ── Resize move/up ──
+function onResizeMove(e) {
+  if (!dragState) return;
+  const pos = getCanvasPos(e);
+  const dx = pos.x - dragState.startMouseX;
+  const dy = pos.y - dragState.startMouseY;
+  const h = dragState.handle;
+  let newW = dragState.startW, newH = dragState.startH;
+  let newX = dragState.startX, newY = dragState.startY;
+  const minSize = 15;
+
+  // Calculate raw size changes based on handle
+  if (h.includes('e')) newW = dragState.startW + dx;
+  if (h.includes('w')) { newW = dragState.startW - dx; newX = dragState.startX + dx; }
+  if (h.includes('s')) newH = dragState.startH + dy;
+  if (h.includes('n')) { newH = dragState.startH - dy; newY = dragState.startY + dy; }
+  if (h === 'n') { newH = dragState.startH - dy; newY = dragState.startY + dy; }
+  if (h === 's') { newH = dragState.startH + dy; }
+  if (h === 'e') { newW = dragState.startW + dx; }
+  if (h === 'w') { newW = dragState.startW - dx; newX = dragState.startX + dx; }
+
+  // Corner: maintain aspect ratio
+  if (h.length === 2) {
+    const ratio = dragState.startW / dragState.startH;
+    const wChange = Math.abs(newW - dragState.startW);
+    const hChange = Math.abs(newH - dragState.startH);
+    if (wChange / (dragState.startW || 1) > hChange / (dragState.startH || 1)) {
+      newH = newW / ratio;
+      if (h.includes('n')) newY = dragState.startY + dragState.startH - newH;
+    } else {
+      newW = newH * ratio;
+      if (h.includes('w')) newX = dragState.startX + dragState.startW - newW;
+    }
+  }
+
+  // Clamp min size
+  if (newW < minSize) { newW = minSize; if (h.includes('w')) newX = dragState.startX + dragState.startW - minSize; }
+  if (newH < minSize) { newH = minSize; if (h.includes('n')) newY = dragState.startY + dragState.startH - minSize; }
+
+  // Update state
+  if (dragState.type === "resize") {
+    const s = getStickerById(dragState.stickerId);
+    if (s) { s.w = newW; s.h = newH; s.x = newX; s.y = newY; }
+    const el = document.querySelector(`.sticker[data-sticker-id="${dragState.stickerId}"]`);
+    if (el) {
+      el.style.left = newX + "px"; el.style.top = newY + "px";
+      const img = el.querySelector("img");
+      if (img) { img.style.width = newW + "px"; img.style.height = newH + "px"; img.style.maxWidth = "none"; img.style.maxHeight = "none"; img.style.objectFit = "fill"; }
+    }
+    const wrap = document.querySelector(".sticker-tools-wrap");
+    if (wrap) { wrap.style.left = newX + "px"; wrap.style.top = newY + "px"; }
+  } else if (dragState.type === "resizeBg") {
+    currentCanvas.bgW = newW; currentCanvas.bgH = newH;
+    currentCanvas.bgX = newX; currentCanvas.bgY = newY;
+    const el = document.querySelector(".bg-layer");
+    if (el) {
+      el.style.left = newX + "px"; el.style.top = newY + "px";
+      el.style.width = newW + "px"; el.style.height = newH + "px";
+    }
+    const wrap = document.querySelector(".sticker-tools-wrap");
+    if (wrap) { wrap.style.left = newX + "px"; wrap.style.top = newY + "px"; }
+  }
+}
+
+function onResizeUp(e) {
+  document.removeEventListener("mousemove", onResizeMove);
+  document.removeEventListener("mouseup", onResizeUp);
+  dragState = null;
+  renderAllStickers();
+}
+
+// Touch events
+function onStickerTouchStart(e, id) {
+  e.stopPropagation();
+  e.preventDefault();
+  // Check resize handles
+  const handle = e.target.closest(".resize-handle");
+  if (handle && id === selectedStickerId) {
+    const touch = e.touches[0];
+    const s = getStickerById(id);
+    if (!s) return;
+    const el = document.querySelector(`.sticker[data-sticker-id="${id}"]`);
+    const img = el ? el.querySelector("img") : null;
+    const curW = s.w || (img ? img.offsetWidth || img.naturalWidth : 96);
+    const curH = s.h || (img ? img.offsetHeight || img.naturalHeight : 96);
+    const pos = getCanvasPos(touch);
+    dragState = {
+      type: "resize", stickerId: id, handle: handle.dataset.handle,
+      startMouseX: pos.x, startMouseY: pos.y,
+      startX: s.x, startY: s.y, startW: curW, startH: curH,
+      startFlipH: s.flipH, startFlipV: s.flipV
+    };
+    document.addEventListener("touchmove", onTouchResizeMove, {passive:false});
+    document.addEventListener("touchend", onTouchResizeUp);
+    return;
+  }
+  selectSticker(id);
+  const touch = e.touches[0];
+  if (!touch) return;
+  const pos = getCanvasPos(touch);
+  const s = getStickerById(id);
+  if (!s) return;
+  dragState = { type: "move", stickerId: id, startX: pos.x, startY: pos.y, origX: s.x, origY: s.y };
+  const el = document.querySelector(`.sticker[data-sticker-id="${id}"]`);
+  if (el) el.classList.add("dragging");
+  document.addEventListener("touchmove", onTouchMove, {passive:false});
+  document.addEventListener("touchend", onTouchEnd);
+}
+
+function onTouchMove(e) {
+  if (!dragState || dragState.type !== "move") return;
+  e.preventDefault();
+  const touch = e.touches[0];
+  if (!touch) return;
+  const pos = getCanvasPos(touch);
+  const dx = pos.x - dragState.startX;
+  const dy = pos.y - dragState.startY;
+  let nx = dragState.origX + dx;
+  let ny = dragState.origY + dy;
+  nx = Math.max(0, Math.min(currentCanvas.w, nx));
+  ny = Math.max(0, Math.min(currentCanvas.h, ny));
+  const s = getStickerById(dragState.stickerId);
+  if (s) { s.x = nx; s.y = ny; }
+  const el = document.querySelector(`.sticker[data-sticker-id="${dragState.stickerId}"]`);
+  if (el) { el.style.left = nx + "px"; el.style.top = ny + "px"; }
+  const wrap = document.querySelector(".sticker-tools-wrap");
+  if (wrap) { wrap.style.left = nx + "px"; wrap.style.top = ny + "px"; }
+}
+
+function onTouchEnd(e) {
+  document.removeEventListener("touchmove", onTouchMove);
+  document.removeEventListener("touchend", onTouchEnd);
+  if (dragState && dragState.type === "move") {
+    const el = document.querySelector(`.sticker[data-sticker-id="${dragState.stickerId}"]`);
+    if (el) el.classList.remove("dragging");
+    dragState = null;
+    renderAllStickers();
+  }
+}
+
+// Touch resize
+function onTouchResizeMove(e) {
+  if (!dragState || (dragState.type !== "resize" && dragState.type !== "resizeBg")) return;
+  e.preventDefault();
+  const touch = e.touches[0];
+  if (!touch) return;
+  // Reuse onResizeMove logic with fake event
+  const fakeE = { clientX: touch.clientX, clientY: touch.clientY };
+  onResizeMove(fakeE);
+}
+function onTouchResizeUp(e) {
+  document.removeEventListener("touchmove", onTouchResizeMove);
+  document.removeEventListener("touchend", onTouchResizeUp);
+  dragState = null;
+  renderAllStickers();
+}
+
+// ============================================================
+//  GLOBAL CLICK & KEYBOARD
+// ============================================================
+function onGlobalClick(e) {
+  // Click on canvas empty area -> deselect
+  if (e.target.closest("#canvasStage") && !e.target.closest(".sticker") && !e.target.closest(".sticker-tools-wrap") && !e.target.closest(".bg-layer") && !e.target.closest(".resize-handle")) {
+    deselectAll();
+  }
+}
+
+function onKeyDown(e) {
+  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+  if (e.key === "Delete" || e.key === "Backspace") {
+    if (selectedStickerId) {
+      removeSticker(selectedStickerId);
+      toast("已删除贴纸");
+    }
+  }
+}
+
+// ============================================================
+//  TOOLBAR
+// ============================================================
+function updateToolbarInfo() {
+  const bgInfo = currentCanvas.bgImage ? " +背景图" : "";
+  document.getElementById("toolbarInfo").textContent =
+    `画布: ${currentCanvas.w}×${currentCanvas.h} | 贴纸: ${stickers.length} 张${bgInfo}`;
+}
+
+// ============================================================
+//  EXPORT (basic: using html2canvas concept — just open image)
+//  For a proper export we'd need html2canvas; here we provide a simple alternative
+// ============================================================
+function exportCanvas() {
+  const cw = currentCanvas.w;
+  const ch = currentCanvas.h;
+  const realCanvas = document.createElement("canvas");
+  realCanvas.width = cw;
+  realCanvas.height = ch;
+  const ctx = realCanvas.getContext("2d");
+  // Fill background color
+  ctx.fillStyle = currentCanvas.color;
+  ctx.fillRect(0, 0, cw, ch);
+
+  let drawOps = [];
+
+  // Background image
+  if (currentCanvas.bgImage) {
+    drawOps.push({
+      src: currentCanvas.bgImage,
+      x: currentCanvas.bgX, y: currentCanvas.bgY,
+      w: currentCanvas.bgW, h: currentCanvas.bgH,
+      angle: currentCanvas.bgAngle || 0,
+      flipH: currentCanvas.bgFlipH, flipV: currentCanvas.bgFlipV
+    });
+  }
+
+  // Stickers — get size from DOM for accurate rendering
+  const sorted = [...stickers].sort((a, b) => a.zIndex - b.zIndex);
+  sorted.forEach(s => {
+    const el = document.querySelector(`.sticker[data-sticker-id="${s.id}"]`);
+    const imgEl = el ? el.querySelector("img") : null;
+    const useW = s.w || (imgEl ? imgEl.offsetWidth || imgEl.naturalWidth || 96 : 96);
+    const useH = s.h || (imgEl ? imgEl.offsetHeight || imgEl.naturalHeight || 96 : 96);
+    drawOps.push({
+      src: s.src,
+      x: s.x, y: s.y, w: useW, h: useH,
+      angle: s.angle || 0,
+      flipH: s.flipH, flipV: s.flipV
+    });
+  });
+
+  if (drawOps.length === 0) { triggerDownload(realCanvas); return; }
+
+  let loaded = 0;
+  drawOps.forEach(op => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      ctx.save();
+      ctx.translate(op.x, op.y);
+      if (op.angle) ctx.rotate(op.angle * Math.PI / 180);
+      if (op.flipH) ctx.scale(-1, 1);
+      if (op.flipV) ctx.scale(1, -1);
+      const dw = op.w || img.width || 96;
+      const dh = op.h || img.height || 96;
+      ctx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
+      ctx.restore();
+      loaded++;
+      if (loaded === drawOps.length) triggerDownload(realCanvas);
+    };
+    img.onerror = () => { loaded++; if (loaded === drawOps.length) triggerDownload(realCanvas); };
+    img.src = op.src;
+  });
+}
+
+function triggerDownload(canvas) {
+  canvas.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "pokemon-canvas-" + Date.now() + ".png";
+    a.click();
+    URL.revokeObjectURL(url);
+    toast("📸 画布已导出！");
+  }, "image/png");
+}
+
+// ============================================================
+//  TOAST
+// ============================================================
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 1800);
+}
+
+</script>
+</body>
+</html>
